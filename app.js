@@ -2,8 +2,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 const INCH_MM = 25.4;
-const SLOT_COLORS = [0x2563eb, 0xea580c, 0x059669];
-const SLOT_HEX = ['#2563eb', '#ea580c', '#059669'];
+const SLOT_COLORS = [0x1d4ed8, 0xd97706, 0x059669];
+const SLOT_HEX = ['#1d4ed8', '#d97706', '#059669'];
+const SLOT_FILL = ['rgba(29, 78, 216, 0.14)', 'rgba(217, 119, 6, 0.14)', 'rgba(5, 150, 105, 0.14)'];
 
 const PRESETS = {
   civic_fc1: [
@@ -41,7 +42,9 @@ const state = {
   ],
   activeSlot: 0,
   baseSlot: 0,
-  partMode: 'both',
+  renderMode: '2d', // '2d' | '3d'
+  partMode: 'both', // 'both' | 'wheel' | 'tire'
+  arrangeSideBySide: false,
   crossSection: false
 };
 
@@ -115,26 +118,216 @@ function calcMetrics(spec) {
   };
 }
 
-// --- Three.js Setup ---
-const container = document.getElementById('canvasContainer');
+// =========================
+// 2D PRECISION DRAWING VIEW
+// =========================
+const canvas2d = document.getElementById('canvas2d');
+const ctx2d = canvas2d.getContext('2d');
+
+function draw2D() {
+  if (state.renderMode !== '2d') return;
+  const wrap = document.getElementById('canvas2dWrap');
+  const w = wrap.clientWidth;
+  const h = wrap.clientHeight;
+  if (w <= 0 || h <= 0) return;
+
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas2d.width = w * dpr;
+  canvas2d.height = h * dpr;
+  ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx2d.clearRect(0, 0, w, h);
+
+  const showWheel = state.partMode === 'both' || state.partMode === 'wheel';
+  const showTire = state.partMode === 'both' || state.partMode === 'tire';
+
+  const metrics = state.slots.map(calcMetrics);
+  const maxRad = Math.max(...metrics.map(m => m.tireRad), 340);
+
+  // Split viewport: Left 52% = Front Cross-Section (X vs Y), Right 48% = Side Concentric Circles
+  const leftW = w * 0.54;
+  const rightW = w - leftW;
+
+  // Common scale (mm -> px)
+  const scale = Math.min((h - 80) / (maxRad * 2.15), (rightW - 50) / (maxRad * 2.15), (leftW - 60) / 420);
+  const cy = h * 0.52;
+  const cxLeft = leftW * 0.54; // X=0 Hub face slightly right of center so inner (-X) has room
+  const cxRight = leftW + rightW * 0.5;
+
+  // --- Background Grid (Left) ---
+  ctx2d.save();
+  ctx2d.strokeStyle = '#e2e8f0';
+  ctx2d.lineWidth = 1;
+  for (let mm = -250; mm <= 200; mm += 50) {
+    const px = cxLeft + mm * scale;
+    if (px < 16 || px > leftW - 12) continue;
+    ctx2d.beginPath();
+    ctx2d.moveTo(px, 28);
+    ctx2d.lineTo(px, h - 24);
+    ctx2d.stroke();
+  }
+
+  // Hub Face Line (X = 0)
+  ctx2d.strokeStyle = '#334155';
+  ctx2d.lineWidth = 1.5;
+  ctx2d.setLineDash([5, 4]);
+  ctx2d.beginPath();
+  ctx2d.moveTo(cxLeft, 28);
+  ctx2d.lineTo(cxLeft, h - 24);
+  ctx2d.stroke();
+  ctx2d.setLineDash([]);
+
+  // Axle Horizontal Line
+  ctx2d.strokeStyle = '#cbd5e1';
+  ctx2d.beginPath();
+  ctx2d.moveTo(16, cy);
+  ctx2d.lineTo(w - 16, cy);
+  ctx2d.stroke();
+
+  // Direction Labels
+  ctx2d.fillStyle = '#475569';
+  ctx2d.font = '600 11px sans-serif';
+  ctx2d.textAlign = 'left';
+  ctx2d.fillText('← 車体側 (ブレーキ)', 14, 22);
+  ctx2d.textAlign = 'right';
+  ctx2d.fillText('フェンダー側 (外側) →', leftW - 14, 22);
+  ctx2d.textAlign = 'center';
+  ctx2d.fillStyle = '#1e293b';
+  ctx2d.fillText('ハブ面 (0)', cxLeft, h - 8);
+  ctx2d.fillText('真横・外径 / 内径比較', cxRight, 22);
+
+  // Brake Rotor Reference Silhouette on Left (-X)
+  ctx2d.fillStyle = 'rgba(148, 163, 184, 0.28)';
+  ctx2d.fillRect(cxLeft - 32 * scale, cy - 145 * scale, 22 * scale, 290 * scale);
+  ctx2d.fillStyle = 'rgba(220, 38, 38, 0.45)';
+  ctx2d.fillRect(cxLeft - 42 * scale, cy - 150 * scale, 34 * scale, 55 * scale);
+
+  // Brake Rotor Circle on Right
+  ctx2d.strokeStyle = 'rgba(148, 163, 184, 0.7)';
+  ctx2d.lineWidth = 1.5;
+  ctx2d.setLineDash([4, 4]);
+  ctx2d.beginPath();
+  ctx2d.arc(cxRight, cy, 145 * scale, 0, Math.PI * 2);
+  ctx2d.stroke();
+  ctx2d.setLineDash([]);
+
+  // Draw each active slot
+  state.slots.forEach((s, idx) => {
+    if (!s.enabled) return;
+    const m = metrics[idx];
+    const color = SLOT_HEX[idx];
+    const fill = SLOT_FILL[idx];
+    const isFocused = idx === state.activeSlot;
+    const lw = isFocused ? 2.6 : 1.8;
+
+    // --- LEFT: Cross Section (Top & Bottom Tire/Wheel Profile) ---
+    ctx2d.save();
+    ctx2d.translate(cxLeft, cy);
+    ctx2d.rotate((-s.camber * Math.PI) / 180);
+
+    // Wheel Barrel Cross-Section (Top & Bottom)
+    if (showWheel) {
+      const xIn = m.innerRimX * scale;
+      const xOut = m.outerRimX * scale;
+      const rIn = m.barrelInnerRad * scale;
+      const rOut = m.rimRad * scale;
+
+      ctx2d.strokeStyle = color;
+      ctx2d.fillStyle = fill;
+      ctx2d.lineWidth = lw;
+
+      [-1, 1].forEach(sign => {
+        ctx2d.beginPath();
+        ctx2d.rect(xIn, sign > 0 ? rIn : -rOut, xOut - xIn, rOut - rIn);
+        ctx2d.fill();
+        ctx2d.stroke();
+      });
+
+      // Vertical inner/outer rim guide lines
+      ctx2d.save();
+      ctx2d.setLineDash([2, 3]);
+      ctx2d.lineWidth = 1;
+      ctx2d.beginPath();
+      ctx2d.moveTo(xOut, -m.tireRad * scale - 10);
+      ctx2d.lineTo(xOut, m.tireRad * scale + 10);
+      ctx2d.stroke();
+      ctx2d.restore();
+    }
+
+    // Tire Section Profile (Top & Bottom)
+    if (showTire) {
+      const cx = m.centerX * scale;
+      const rimHalf = (m.rimWidth / 2) * scale;
+      const bulgeHalf = (m.actualSectionWidth / 2) * scale;
+      const treadHalf = ((m.actualSectionWidth * 0.86) / 2) * scale;
+      const rBead = m.rimRad * scale;
+      const rMid = (m.rimRad + m.sidewallH * 0.52) * scale;
+      const rOut = m.tireRad * scale;
+
+      ctx2d.strokeStyle = color;
+      ctx2d.fillStyle = fill;
+      ctx2d.lineWidth = lw;
+
+      [-1, 1].forEach(sign => {
+        ctx2d.beginPath();
+        ctx2d.moveTo(cx - rimHalf, sign * rBead);
+        ctx2d.lineTo(cx - bulgeHalf, sign * rMid);
+        ctx2d.lineTo(cx - treadHalf, sign * rOut);
+        ctx2d.lineTo(cx + treadHalf, sign * rOut);
+        ctx2d.lineTo(cx + bulgeHalf, sign * rMid);
+        ctx2d.lineTo(cx + rimHalf, sign * rBead);
+        ctx2d.closePath();
+        ctx2d.fill();
+        ctx2d.stroke();
+      });
+    }
+    ctx2d.restore();
+
+    // --- RIGHT: Concentric Circles (Tire Outer & Rim Inner) ---
+    ctx2d.strokeStyle = color;
+    ctx2d.lineWidth = lw;
+    if (showTire) {
+      ctx2d.beginPath();
+      ctx2d.arc(cxRight, cy, m.tireRad * scale, 0, Math.PI * 2);
+      ctx2d.stroke();
+    }
+    if (showWheel) {
+      ctx2d.beginPath();
+      ctx2d.arc(cxRight, cy, m.rimRad * scale, 0, Math.PI * 2);
+      ctx2d.stroke();
+
+      ctx2d.save();
+      ctx2d.setLineDash([4, 3]);
+      ctx2d.lineWidth = 1.2;
+      ctx2d.beginPath();
+      ctx2d.arc(cxRight, cy, m.barrelInnerRad * scale, 0, Math.PI * 2);
+      ctx2d.stroke();
+      ctx2d.restore();
+    }
+  });
+
+  ctx2d.restore();
+}
+
+// =========================
+// 3D THREE.JS VIEW
+// =========================
+const container3d = document.getElementById('canvasContainer');
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(38, Math.max(1, container.clientWidth) / Math.max(1, container.clientHeight), 10, 5000);
+const camera = new THREE.PerspectiveCamera(38, 1, 10, 5000);
 camera.position.set(660, 310, 740);
 
 let renderer;
 try {
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-  renderer.setSize(Math.max(100, container.clientWidth), Math.max(100, container.clientHeight));
-  container.appendChild(renderer.domElement);
+  container3d.appendChild(renderer.domElement);
 } catch (err) {
   showError(err.message);
 }
 
-const controls = new OrbitControls(camera, renderer ? renderer.domElement : container);
+const controls = new OrbitControls(camera, renderer ? renderer.domElement : container3d);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
-controls.target.set(0, 0, 0);
 
 scene.add(new THREE.AmbientLight(0xffffff, 1.1));
 const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.0);
@@ -144,7 +337,6 @@ const dirLight2 = new THREE.DirectionalLight(0xe0f2fe, 0.7);
 dirLight2.position.set(-600, -300, -400);
 scene.add(dirLight2);
 
-// Reference Hub Plane (X = 0), Brake Rotor Anchor (-X), & Grid
 const refGroup = new THREE.Group();
 const hubPlaneGeo = new THREE.RingGeometry(34, 140, 48);
 hubPlaneGeo.rotateY(Math.PI / 2);
@@ -153,7 +345,6 @@ refGroup.add(new THREE.Mesh(
   new THREE.MeshBasicMaterial({ color: 0x334155, opacity: 0.14, transparent: true, side: THREE.DoubleSide })
 ));
 
-// Brake Rotor & Caliper Silhouette on Inner Side (-X) as spatial anchor
 const rotorGeo = new THREE.CylinderGeometry(145, 145, 22, 40);
 rotorGeo.rotateZ(Math.PI / 2);
 const rotorMesh = new THREE.Mesh(
@@ -171,17 +362,7 @@ const caliperMesh = new THREE.Mesh(
 caliperMesh.position.set(-28, 125, -50);
 refGroup.add(caliperMesh);
 
-const hubEdgeGeo = new THREE.TorusGeometry(140, 1.5, 8, 64);
-hubEdgeGeo.rotateY(Math.PI / 2);
-refGroup.add(new THREE.Mesh(hubEdgeGeo, new THREE.MeshBasicMaterial({ color: 0x475569 })));
-
-const axisGeo = new THREE.BufferGeometry().setFromPoints([
-  new THREE.Vector3(-250, 0, 0),
-  new THREE.Vector3(250, 0, 0)
-]);
-refGroup.add(new THREE.Line(axisGeo, new THREE.LineBasicMaterial({ color: 0x64748b })));
-
-const gridHelper = new THREE.GridHelper(900, 18, 0x94a3b8, 0xcbd5e1);
+const gridHelper = new THREE.GridHelper(1100, 22, 0x94a3b8, 0xcbd5e1);
 gridHelper.position.y = -360;
 refGroup.add(gridHelper);
 scene.add(refGroup);
@@ -205,15 +386,13 @@ function addCrispRing(group, radius, xPos, color, tubeRadius, crossSection) {
   const arc = crossSection ? Math.PI : Math.PI * 2;
   const geo = new THREE.TorusGeometry(radius, tubeRadius, 8, 64, arc);
   geo.rotateY(Math.PI / 2);
-  if (crossSection) {
-    geo.rotateX(Math.PI * 0.5);
-  }
+  if (crossSection) geo.rotateX(Math.PI * 0.5);
   const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color }));
   mesh.position.x = xPos;
   group.add(mesh);
 }
 
-function buildSlot3D(group, spec, color, isFocused, isBase) {
+function buildSlot3D(group, spec, color, isFocused, zOffset) {
   clearGroup(group);
   if (!spec.enabled) return;
 
@@ -226,9 +405,10 @@ function buildSlot3D(group, spec, color, isFocused, isBase) {
   const showWheel = state.partMode === 'both' || state.partMode === 'wheel';
   const showTire = state.partMode === 'both' || state.partMode === 'tire';
 
-  const wheelOpacity = isFocused ? 0.78 : 0.22;
-  const tireOpacity = isFocused ? 0.62 : 0.16;
-  const ringThick = isFocused ? 2.2 : (isBase ? 1.8 : 1.5);
+  const solidMode = state.arrangeSideBySide || isFocused;
+  const wheelOpacity = solidMode ? 0.82 : 0.22;
+  const tireOpacity = solidMode ? 0.65 : 0.16;
+  const ringThick = solidMode ? 2.2 : 1.6;
 
   if (showWheel) {
     const rOut = m.rimRad;
@@ -258,15 +438,14 @@ function buildSlot3D(group, spec, color, isFocused, isBase) {
       color,
       metalness: 0.4,
       roughness: 0.3,
-      transparent: true,
-      opacity: wheelOpacity,
-      depthWrite: isFocused,
+      transparent: !state.arrangeSideBySide,
+      opacity: state.arrangeSideBySide ? 1.0 : wheelOpacity,
+      depthWrite: solidMode,
       side: THREE.DoubleSide
     });
     group.add(new THREE.Mesh(geo, mat));
 
-    // Spokes & Center Hub for solid wheel recognition
-    if (isFocused) {
+    if (solidMode) {
       const hubGeo = new THREE.CylinderGeometry(38, 38, 18, 24);
       hubGeo.rotateZ(Math.PI / 2);
       const hubMesh = new THREE.Mesh(hubGeo, mat);
@@ -288,7 +467,6 @@ function buildSlot3D(group, spec, color, isFocused, isBase) {
 
     addCrispRing(group, rOut + lip, xOut, color, ringThick, cross);
     addCrispRing(group, rOut + lip, xIn, color, ringThick, cross);
-    addCrispRing(group, rIn, xIn, color, ringThick * 0.85, cross);
   }
 
   if (showTire) {
@@ -317,24 +495,22 @@ function buildSlot3D(group, spec, color, isFocused, isBase) {
     const geo = new THREE.LatheGeometry(pts, segs, phiStart, phiLength);
     geo.rotateZ(-Math.PI / 2);
 
-    const tireColor = isFocused ? 0x334155 : color;
     const mat = new THREE.MeshStandardMaterial({
-      color: tireColor,
+      color: solidMode ? 0x334155 : color,
       roughness: 0.8,
       metalness: 0.05,
-      transparent: true,
-      opacity: tireOpacity,
-      depthWrite: isFocused,
+      transparent: !state.arrangeSideBySide,
+      opacity: state.arrangeSideBySide ? 0.92 : tireOpacity,
+      depthWrite: solidMode,
       side: THREE.DoubleSide
     });
     group.add(new THREE.Mesh(geo, mat));
 
     addCrispRing(group, rOuter, cx + treadHalfW - 8, color, ringThick, cross);
     addCrispRing(group, rOuter, cx - treadHalfW + 8, color, ringThick, cross);
-    addCrispRing(group, rMid, cx + bulgeHalfW, color, ringThick * 0.7, cross);
-    addCrispRing(group, rMid, cx - bulgeHalfW, color, ringThick * 0.7, cross);
   }
 
+  group.position.z = zOffset;
   group.rotation.z = -(spec.camber * Math.PI) / 180;
 }
 
@@ -343,9 +519,13 @@ function fmtDiff(v) {
   return `${s}${v.toFixed(1)}`;
 }
 
-function updateSceneAndHud() {
+function updateViewsAndHud() {
+  draw2D();
+
+  const zStep = state.arrangeSideBySide ? 360 : 0;
   state.slots.forEach((spec, idx) => {
-    buildSlot3D(slotGroups[idx], spec, SLOT_COLORS[idx], idx === state.activeSlot, idx === state.baseSlot);
+    const zOff = (idx - 1) * zStep;
+    buildSlot3D(slotGroups[idx], spec, SLOT_COLORS[idx], idx === state.activeSlot, zOff);
   });
 
   const metrics = state.slots.map(calcMetrics);
@@ -356,7 +536,7 @@ function updateSceneAndHud() {
   legendBar.innerHTML = state.slots.map((s, idx) => `
     <div class="legend-pill ${s.enabled ? '' : 'off'}" data-toggle-slot="${idx}">
       <span class="dot dot-${idx}"></span>
-      <span>${s.label || `Slot ${String.fromCharCode(65 + idx)}`}: ${s.inch}×${s.j}J ${s.et - s.spacer >= 0 ? '+' : ''}${s.et - s.spacer}</span>
+      <span>${s.label || `Slot ${String.fromCharCode(65 + idx)}`}</span>
     </div>
   `).join('');
 
@@ -451,7 +631,7 @@ function syncUI() {
   sumEl.style.color = SLOT_HEX[state.activeSlot];
   sumEl.textContent = `${s.inch}×${s.j}J ${s.et - s.spacer >= 0 ? '+' : ''}${s.et - s.spacer}\n${s.width}/${s.aspect}R${s.inch}`;
 
-  updateSceneAndHud();
+  updateViewsAndHud();
 }
 
 // --- Bindings ---
@@ -515,18 +695,42 @@ document.getElementById('tireStringInput').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') parseQuickText();
 });
 
-document.querySelectorAll('.seg-btn').forEach(btn => {
+// 2D / 3D Mode Switch
+document.querySelectorAll('#renderModeGroup .seg-btn').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('#renderModeGroup .seg-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.renderMode = btn.dataset.render;
+
+    const is3d = state.renderMode === '3d';
+    document.getElementById('canvas2dWrap').hidden = is3d;
+    document.getElementById('canvas3dWrap').hidden = !is3d;
+    document.getElementById('arrangeWrap').hidden = !is3d;
+    document.getElementById('crossWrap').hidden = !is3d;
+    document.getElementById('viewBar').hidden = !is3d;
+
+    resizeAll();
+    updateViewsAndHud();
+  });
+});
+
+document.querySelectorAll('#partModeGroup .seg-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#partModeGroup .seg-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     state.partMode = btn.dataset.mode;
-    updateSceneAndHud();
+    updateViewsAndHud();
   });
+});
+
+document.getElementById('arrangeToggle').addEventListener('change', (e) => {
+  state.arrangeSideBySide = e.target.checked;
+  updateViewsAndHud();
 });
 
 document.getElementById('crossSectionToggle').addEventListener('change', (e) => {
   state.crossSection = e.target.checked;
-  updateSceneAndHud();
+  updateViewsAndHud();
 });
 
 const VIEWS = {
@@ -535,9 +739,9 @@ const VIEWS = {
   side: [950, 20, 10],
   inner: [-750, 260, 520]
 };
-document.querySelectorAll('.view-btn').forEach(btn => {
+document.querySelectorAll('#viewBar .mini-btn').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('#viewBar .mini-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     const p = VIEWS[btn.dataset.view];
     camera.position.set(p[0], p[1], p[2]);
@@ -570,29 +774,33 @@ document.getElementById('shareUrlBtn').addEventListener('click', async () => {
   }
 });
 
-function resizeRenderer() {
-  if (!renderer) return;
-  const w = container.clientWidth;
-  const h = container.clientHeight;
-  if (w > 0 && h > 0) {
-    camera.aspect = w / h;
-    camera.updateProjectionMatrix();
-    renderer.setSize(w, h);
+function resizeAll() {
+  draw2D();
+  if (renderer && state.renderMode === '3d') {
+    const w = container3d.clientWidth;
+    const h = container3d.clientHeight;
+    if (w > 0 && h > 0) {
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    }
   }
 }
 
 if (typeof ResizeObserver !== 'undefined') {
-  new ResizeObserver(resizeRenderer).observe(container);
+  new ResizeObserver(resizeAll).observe(document.querySelector('.stage-wrap'));
 }
-window.addEventListener('resize', resizeRenderer);
+window.addEventListener('resize', resizeAll);
 
 function animate() {
   requestAnimationFrame(animate);
-  controls.update();
-  if (renderer) renderer.render(scene, camera);
+  if (renderer && state.renderMode === '3d') {
+    controls.update();
+    renderer.render(scene, camera);
+  }
 }
 
 loadFromUrl();
 syncUI();
-resizeRenderer();
+resizeAll();
 animate();

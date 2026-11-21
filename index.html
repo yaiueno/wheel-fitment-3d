@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Fitment Studio 3D — 3スロット比較</title>
-  <link rel="stylesheet" href="style.css?v=4" />
+  <title>Fitment Studio — 2D断面 × 3D統合比較</title>
+  <link rel="stylesheet" href="style.css?v=5" />
   <script type="importmap">
     {
       "imports": {
@@ -17,60 +17,74 @@
 <body>
   <header class="topbar">
     <div class="brand">
-      <span class="brand-badge">3D</span>
-      <h1>Fitment Studio</h1>
+      <span class="brand-mark">FITMENT</span>
+      <h1>タイヤ・ホイール統合比較</h1>
     </div>
     <div class="topbar-actions">
       <select id="presetSelect" title="車種プリセット">
-        <option value="">プリセット...</option>
+        <option value="">車種プリセット...</option>
         <option value="civic_fc1">シビック (FC1/FK7)</option>
         <option value="kei_standard">軽 (デイズ/N-BOX)</option>
         <option value="prius_50">プリウス/カローラ</option>
         <option value="86_brz">86 / BRZ</option>
         <option value="nd_roadster">ロードスター (ND)</option>
       </select>
-      <button id="shareUrlBtn" class="btn btn-accent">URLコピー</button>
+      <button id="shareUrlBtn" class="btn btn-primary">URLをコピー</button>
     </div>
   </header>
 
   <main class="layout">
-    <!-- 3D ビューポート -->
-    <section class="viewport-wrap">
-      <div id="canvasContainer" class="canvas-container"></div>
-      <div id="errorBanner" class="error-banner" hidden></div>
-
-      <!-- カメラ視点バー -->
-      <div class="view-bar">
-        <button class="view-btn active" data-view="iso">3D斜め</button>
-        <button class="view-btn" data-view="front">正面(ツライチ)</button>
-        <button class="view-btn" data-view="side">真横(外径)</button>
-        <button class="view-btn" data-view="inner">裏側(ブレーキ)</button>
-      </div>
-
-      <!-- 表示モードバー -->
-      <div class="mode-bar">
-        <div class="segmented" id="partModeGroup">
-          <button class="seg-btn active" data-mode="both">両方</button>
-          <button class="seg-btn" data-mode="wheel">ホイールのみ</button>
-          <button class="seg-btn" data-mode="tire">タイヤのみ</button>
+    <section class="stage-wrap">
+      <!-- ツールバー上段: 2D / 3D 統合切替 & 表示オプション -->
+      <div class="stage-toolbar">
+        <div class="seg-group" id="renderModeGroup">
+          <button class="seg-btn active" data-render="2d">2D 精密断面</button>
+          <button class="seg-btn" data-render="3d">3D 立体</button>
         </div>
-        <label class="chip-toggle">
+
+        <div class="seg-group" id="partModeGroup">
+          <button class="seg-btn active" data-mode="both">両方</button>
+          <button class="seg-btn" data-mode="wheel">ホイール</button>
+          <button class="seg-btn" data-mode="tire">タイヤ</button>
+        </div>
+
+        <label class="toggle-chip" id="arrangeWrap" hidden>
+          <input type="checkbox" id="arrangeToggle" />
+          <span>並べて表示</span>
+        </label>
+
+        <label class="toggle-chip" id="crossWrap" hidden>
           <input type="checkbox" id="crossSectionToggle" />
           <span>断面カット</span>
         </label>
+
+        <div class="view-group" id="viewBar" hidden>
+          <button class="mini-btn active" data-view="iso">斜め</button>
+          <button class="mini-btn" data-view="front">正面</button>
+          <button class="mini-btn" data-view="side">真横</button>
+          <button class="mini-btn" data-view="inner">裏側</button>
+        </div>
+
+        <div class="legend-inline" id="legendBar"></div>
       </div>
 
-      <!-- 3スロット凡例 & 表示トグル -->
-      <div class="legend-bar" id="legendBar"></div>
-
-      <!-- 比較サマリーオーバーレイ -->
-      <div class="hud-panel">
-        <div class="hud-row" id="hudRow"></div>
+      <!-- 2D 精密図面キャンバス -->
+      <div id="canvas2dWrap" class="canvas-stage">
+        <canvas id="canvas2d"></canvas>
       </div>
+
+      <!-- 3D 立体キャンバス -->
+      <div id="canvas3dWrap" class="canvas-stage" hidden>
+        <div id="canvasContainer" class="canvas-3d-inner"></div>
+      </div>
+
+      <div id="errorBanner" class="error-banner" hidden></div>
+
+      <!-- 下部 3スロット比較サマリー -->
+      <div class="hud-bar" id="hudRow"></div>
     </section>
 
-    <!-- コンパクト数値入力パネル -->
-    <aside class="controls-panel">
+    <aside class="sidebar">
       <div class="slot-tabs" id="slotTabs">
         <button class="slot-tab active" data-slot="0">
           <span class="dot dot-0"></span><span>Slot A</span>
@@ -83,56 +97,53 @@
         </button>
       </div>
 
-      <div class="slot-meta-bar">
-        <label class="meta-check">
+      <div class="slot-meta">
+        <label class="check-label">
           <input type="checkbox" id="slotEnabled" checked /><span>表示</span>
         </label>
-        <label class="meta-check">
-          <input type="checkbox" id="slotIsBase" /><span>基準</span>
+        <label class="check-label">
+          <input type="checkbox" id="slotIsBase" /><span>基準にする</span>
         </label>
-        <input type="text" id="slotLabel" class="slot-label-input" placeholder="ラベル" maxlength="14" />
+        <input type="text" id="slotLabel" class="label-input" placeholder="ラベル" maxlength="14" />
       </div>
 
-      <!-- まとめ文字列入力 (Enterでも反映) -->
       <div class="quick-parse">
         <input type="text" id="tireStringInput" placeholder="例: 215/45R17 7.5J +45" />
         <button id="tireParseBtn" class="btn">反映</button>
       </div>
 
-      <!-- 数値入力グリッド (スライダー撤廃) -->
       <div class="num-grid">
         <label class="num-field">
           <span>インチ</span>
           <input type="number" id="inp_inch" min="10" max="24" step="1" />
         </label>
         <label class="num-field">
-          <span>J数 (幅)</span>
+          <span>J数 (リム幅)</span>
           <input type="number" id="inp_j" min="3.5" max="14" step="0.5" />
         </label>
         <label class="num-field">
-          <span>インセット</span>
+          <span>インセット (mm)</span>
           <input type="number" id="inp_et" min="-50" max="80" step="1" />
         </label>
         <label class="num-field">
-          <span>スペーサー</span>
+          <span>スペーサー (mm)</span>
           <input type="number" id="inp_spacer" min="0" max="50" step="1" />
         </label>
         <label class="num-field">
-          <span>タイヤ幅</span>
+          <span>タイヤ幅 (mm)</span>
           <input type="number" id="inp_width" min="115" max="355" step="5" />
         </label>
         <label class="num-field">
-          <span>扁平率(%)</span>
+          <span>扁平率 (%)</span>
           <input type="number" id="inp_aspect" min="20" max="90" step="5" />
         </label>
         <label class="num-field">
-          <span>キャンバー(°)</span>
+          <span>キャンバー (°)</span>
           <input type="number" id="inp_camber" min="0" max="10" step="0.5" />
         </label>
         <div class="spec-badge" id="slotSummary">--</div>
       </div>
 
-      <!-- 3スロット実測比較テーブル -->
       <div class="metrics-box">
         <div class="metrics-title" id="metricsTitle">基準比 比較表 (mm)</div>
         <table class="metrics-table">
@@ -151,7 +162,6 @@
   </main>
 
   <div id="toast" class="toast">URLをコピーしました</div>
-
-  <script type="module" src="app.js?v=4"></script>
+  <script type="module" src="app.js?v=5"></script>
 </body>
 </html>
