@@ -144,16 +144,34 @@ const dirLight2 = new THREE.DirectionalLight(0xe0f2fe, 0.7);
 dirLight2.position.set(-600, -300, -400);
 scene.add(dirLight2);
 
-// Reference Hub Plane (X = 0) & Grid
+// Reference Hub Plane (X = 0), Brake Rotor Anchor (-X), & Grid
 const refGroup = new THREE.Group();
-const hubPlaneGeo = new THREE.RingGeometry(36, 145, 48);
+const hubPlaneGeo = new THREE.RingGeometry(34, 140, 48);
 hubPlaneGeo.rotateY(Math.PI / 2);
 refGroup.add(new THREE.Mesh(
   hubPlaneGeo,
-  new THREE.MeshBasicMaterial({ color: 0x0f172a, opacity: 0.08, transparent: true, side: THREE.DoubleSide })
+  new THREE.MeshBasicMaterial({ color: 0x334155, opacity: 0.14, transparent: true, side: THREE.DoubleSide })
 ));
 
-const hubEdgeGeo = new THREE.TorusGeometry(145, 1.2, 8, 64);
+// Brake Rotor & Caliper Silhouette on Inner Side (-X) as spatial anchor
+const rotorGeo = new THREE.CylinderGeometry(145, 145, 22, 40);
+rotorGeo.rotateZ(Math.PI / 2);
+const rotorMesh = new THREE.Mesh(
+  rotorGeo,
+  new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.5, roughness: 0.4, transparent: true, opacity: 0.55 })
+);
+rotorMesh.position.x = -24;
+refGroup.add(rotorMesh);
+
+const caliperGeo = new THREE.BoxGeometry(46, 110, 65);
+const caliperMesh = new THREE.Mesh(
+  caliperGeo,
+  new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.5, transparent: true, opacity: 0.65 })
+);
+caliperMesh.position.set(-28, 125, -50);
+refGroup.add(caliperMesh);
+
+const hubEdgeGeo = new THREE.TorusGeometry(140, 1.5, 8, 64);
 hubEdgeGeo.rotateY(Math.PI / 2);
 refGroup.add(new THREE.Mesh(hubEdgeGeo, new THREE.MeshBasicMaterial({ color: 0x475569 })));
 
@@ -208,9 +226,9 @@ function buildSlot3D(group, spec, color, isFocused, isBase) {
   const showWheel = state.partMode === 'both' || state.partMode === 'wheel';
   const showTire = state.partMode === 'both' || state.partMode === 'tire';
 
-  const wheelOpacity = isFocused ? 0.52 : 0.16;
-  const tireOpacity = isFocused ? 0.34 : 0.12;
-  const ringThick = isFocused ? 2.4 : (isBase ? 2.0 : 1.6);
+  const wheelOpacity = isFocused ? 0.78 : 0.22;
+  const tireOpacity = isFocused ? 0.62 : 0.16;
+  const ringThick = isFocused ? 2.2 : (isBase ? 1.8 : 1.5);
 
   if (showWheel) {
     const rOut = m.rimRad;
@@ -238,14 +256,35 @@ function buildSlot3D(group, spec, color, isFocused, isBase) {
 
     const mat = new THREE.MeshStandardMaterial({
       color,
-      metalness: 0.35,
-      roughness: 0.35,
+      metalness: 0.4,
+      roughness: 0.3,
       transparent: true,
       opacity: wheelOpacity,
-      depthWrite: false,
+      depthWrite: isFocused,
       side: THREE.DoubleSide
     });
     group.add(new THREE.Mesh(geo, mat));
+
+    // Spokes & Center Hub for solid wheel recognition
+    if (isFocused) {
+      const hubGeo = new THREE.CylinderGeometry(38, 38, 18, 24);
+      hubGeo.rotateZ(Math.PI / 2);
+      const hubMesh = new THREE.Mesh(hubGeo, mat);
+      hubMesh.position.x = Math.min(xOut - 22, Math.max(xIn + 35, 8));
+      group.add(hubMesh);
+
+      const spokeCount = 5;
+      const spokeLen = Math.max(40, rIn - 34);
+      const spokeGeo = new THREE.BoxGeometry(10, spokeLen, 16);
+      for (let i = 0; i < spokeCount; i++) {
+        const ang = (i / spokeCount) * Math.PI * 2;
+        if (cross && Math.cos(ang) > 0.2) continue;
+        const sp = new THREE.Mesh(spokeGeo, mat);
+        sp.position.set(xOut - 16, Math.sin(ang) * (spokeLen / 2 + 28), Math.cos(ang) * (spokeLen / 2 + 28));
+        sp.rotation.x = -ang + Math.PI / 2;
+        group.add(sp);
+      }
+    }
 
     addCrispRing(group, rOut + lip, xOut, color, ringThick, cross);
     addCrispRing(group, rOut + lip, xIn, color, ringThick, cross);
@@ -278,13 +317,14 @@ function buildSlot3D(group, spec, color, isFocused, isBase) {
     const geo = new THREE.LatheGeometry(pts, segs, phiStart, phiLength);
     geo.rotateZ(-Math.PI / 2);
 
+    const tireColor = isFocused ? 0x334155 : color;
     const mat = new THREE.MeshStandardMaterial({
-      color,
-      roughness: 0.75,
+      color: tireColor,
+      roughness: 0.8,
       metalness: 0.05,
       transparent: true,
       opacity: tireOpacity,
-      depthWrite: false,
+      depthWrite: isFocused,
       side: THREE.DoubleSide
     });
     group.add(new THREE.Mesh(geo, mat));
