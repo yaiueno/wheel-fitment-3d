@@ -2,8 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 const INCH_MM = 25.4;
-
-const SLOT_COLORS = [0x2563eb, 0xea580c, 0x059669]; // Blue, Orange, Emerald
+const SLOT_COLORS = [0x2563eb, 0xea580c, 0x059669];
 const SLOT_HEX = ['#2563eb', '#ea580c', '#059669'];
 
 const PRESETS = {
@@ -42,11 +41,18 @@ const state = {
   ],
   activeSlot: 0,
   baseSlot: 0,
-  partMode: 'both', // 'both' | 'wheel' | 'tire'
+  partMode: 'both',
   crossSection: false
 };
 
-// --- URL Load ---
+function showError(msg) {
+  const el = document.getElementById('errorBanner');
+  if (el) {
+    el.hidden = false;
+    el.textContent = `描画エラー: ${msg}`;
+  }
+}
+
 function loadFromUrl() {
   const params = new URLSearchParams(window.location.search);
   ['s0', 's1', 's2'].forEach((key, idx) => {
@@ -73,26 +79,32 @@ function loadFromUrl() {
   }
 }
 
-// --- Geometry Calculations (mm, X=0 is Hub Face, +X Outer, -X Inner) ---
 function calcMetrics(spec) {
-  const rimDia = spec.inch * INCH_MM;
+  const inch = Math.max(8, Number(spec.inch) || 16);
+  const j = Math.max(3, Number(spec.j) || 7);
+  const et = Number(spec.et) || 0;
+  const spacer = Number(spec.spacer) || 0;
+  const width = Math.max(100, Number(spec.width) || 205);
+  const aspect = Math.max(15, Number(spec.aspect) || 55);
+
+  const rimDia = inch * INCH_MM;
   const rimRad = rimDia / 2;
-  const rimWidth = spec.j * INCH_MM;
-  const effEt = spec.et - spec.spacer;
+  const rimWidth = j * INCH_MM;
+  const effEt = et - spacer;
   const centerX = -effEt;
   const outerRimX = centerX + rimWidth / 2;
   const innerRimX = centerX - rimWidth / 2;
 
-  const sidewallH = spec.width * (spec.aspect / 100);
+  const sidewallH = width * (aspect / 100);
   const tireDia = rimDia + 2 * sidewallH;
   const tireRad = tireDia / 2;
 
-  const stdRimWidth = spec.width * 0.72;
-  const actualSectionWidth = spec.width + (rimWidth - stdRimWidth) * 0.4;
+  const stdRimWidth = width * 0.72;
+  const actualSectionWidth = width + (rimWidth - stdRimWidth) * 0.4;
   const maxTireWidth = Math.max(actualSectionWidth, rimWidth + 6);
   const outerTireX = centerX + maxTireWidth / 2;
   const innerTireX = centerX - maxTireWidth / 2;
-  const barrelInnerRad = Math.max(80, rimRad - 18);
+  const barrelInnerRad = Math.max(60, rimRad - 18);
 
   return {
     rimDia, rimRad, rimWidth, effEt, centerX,
@@ -103,24 +115,27 @@ function calcMetrics(spec) {
   };
 }
 
-// --- Three.js Setup (Bright Studio) ---
+// --- Three.js Setup ---
 const container = document.getElementById('canvasContainer');
 const scene = new THREE.Scene();
-
-const camera = new THREE.PerspectiveCamera(38, container.clientWidth / container.clientHeight, 10, 5000);
+const camera = new THREE.PerspectiveCamera(38, Math.max(1, container.clientWidth) / Math.max(1, container.clientHeight), 10, 5000);
 camera.position.set(660, 310, 740);
 
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-renderer.setSize(container.clientWidth, container.clientHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-container.appendChild(renderer.domElement);
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setSize(Math.max(100, container.clientWidth), Math.max(100, container.clientHeight));
+  container.appendChild(renderer.domElement);
+} catch (err) {
+  showError(err.message);
+}
 
-const controls = new OrbitControls(camera, renderer.domElement);
+const controls = new OrbitControls(camera, renderer ? renderer.domElement : container);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 controls.target.set(0, 0, 0);
 
-// Bright Studio Lights
 scene.add(new THREE.AmbientLight(0xffffff, 1.1));
 const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.0);
 dirLight1.position.set(500, 800, 600);
@@ -129,7 +144,7 @@ const dirLight2 = new THREE.DirectionalLight(0xe0f2fe, 0.7);
 dirLight2.position.set(-600, -300, -400);
 scene.add(dirLight2);
 
-// Reference Hub Plane (X = 0) & Scale Grid
+// Reference Hub Plane (X = 0) & Grid
 const refGroup = new THREE.Group();
 const hubPlaneGeo = new THREE.RingGeometry(36, 145, 48);
 hubPlaneGeo.rotateY(Math.PI / 2);
@@ -142,14 +157,12 @@ const hubEdgeGeo = new THREE.TorusGeometry(145, 1.2, 8, 64);
 hubEdgeGeo.rotateY(Math.PI / 2);
 refGroup.add(new THREE.Mesh(hubEdgeGeo, new THREE.MeshBasicMaterial({ color: 0x475569 })));
 
-// Axle Center Line
 const axisGeo = new THREE.BufferGeometry().setFromPoints([
   new THREE.Vector3(-250, 0, 0),
   new THREE.Vector3(250, 0, 0)
 ]);
 refGroup.add(new THREE.Line(axisGeo, new THREE.LineBasicMaterial({ color: 0x64748b })));
 
-// Subtle Floor Grid at Y = -360
 const gridHelper = new THREE.GridHelper(900, 18, 0x94a3b8, 0xcbd5e1);
 gridHelper.position.y = -360;
 refGroup.add(gridHelper);
@@ -195,7 +208,6 @@ function buildSlot3D(group, spec, color, isFocused, isBase) {
   const showWheel = state.partMode === 'both' || state.partMode === 'wheel';
   const showTire = state.partMode === 'both' || state.partMode === 'tire';
 
-  // Opacity & Ring Thickness to let all 3 slots assert clearly without muddying
   const wheelOpacity = isFocused ? 0.52 : 0.16;
   const tireOpacity = isFocused ? 0.34 : 0.12;
   const ringThick = isFocused ? 2.4 : (isBase ? 2.0 : 1.6);
@@ -235,7 +247,6 @@ function buildSlot3D(group, spec, color, isFocused, isBase) {
     });
     group.add(new THREE.Mesh(geo, mat));
 
-    // Crisp rim lip & inner barrel rings (always sharp!)
     addCrispRing(group, rOut + lip, xOut, color, ringThick, cross);
     addCrispRing(group, rOut + lip, xIn, color, ringThick, cross);
     addCrispRing(group, rIn, xIn, color, ringThick * 0.85, cross);
@@ -278,7 +289,6 @@ function buildSlot3D(group, spec, color, isFocused, isBase) {
     });
     group.add(new THREE.Mesh(geo, mat));
 
-    // Crisp tire tread shoulder & sidewall peak rings
     addCrispRing(group, rOuter, cx + treadHalfW - 8, color, ringThick, cross);
     addCrispRing(group, rOuter, cx - treadHalfW + 8, color, ringThick, cross);
     addCrispRing(group, rMid, cx + bulgeHalfW, color, ringThick * 0.7, cross);
@@ -302,12 +312,11 @@ function updateSceneAndHud() {
   const baseM = metrics[state.baseSlot];
   const baseSpec = state.slots[state.baseSlot];
 
-  // Legend Bar
   const legendBar = document.getElementById('legendBar');
   legendBar.innerHTML = state.slots.map((s, idx) => `
     <div class="legend-pill ${s.enabled ? '' : 'off'}" data-toggle-slot="${idx}">
       <span class="dot dot-${idx}"></span>
-      <span>${s.label || `Slot ${String.fromCharCode(65 + idx)}`}: ${s.inch}×${s.j.toFixed(1)}J ${s.et - s.spacer >= 0 ? '+' : ''}${s.et - s.spacer}</span>
+      <span>${s.label || `Slot ${String.fromCharCode(65 + idx)}`}: ${s.inch}×${s.j}J ${s.et - s.spacer >= 0 ? '+' : ''}${s.et - s.spacer}</span>
     </div>
   `).join('');
 
@@ -319,7 +328,6 @@ function updateSceneAndHud() {
     });
   });
 
-  // HUD Cards (3 Slots vs Base)
   const hudRow = document.getElementById('hudRow');
   hudRow.innerHTML = state.slots.map((s, idx) => {
     const m = metrics[idx];
@@ -330,7 +338,7 @@ function updateSceneAndHud() {
         <div class="hud-card slot-${idx} off">
           <div class="hud-label"><span>${name}</span></div>
           <div class="hud-val">非表示</div>
-          <div class="hud-sub">${s.inch}×${s.j.toFixed(1)}J ${s.et - s.spacer >= 0 ? '+' : ''}${s.et - s.spacer}</div>
+          <div class="hud-sub">${s.inch}×${s.j}J ${s.et - s.spacer >= 0 ? '+' : ''}${s.et - s.spacer}</div>
         </div>
       `;
     }
@@ -338,8 +346,8 @@ function updateSceneAndHud() {
       return `
         <div class="hud-card slot-${idx}">
           <div class="hud-label"><span>${name}</span><span class="base-tag">基準</span></div>
-          <div class="hud-val">外径 ${m.tireDia.toFixed(0)}mm / 実効ET ${m.effEt >= 0 ? '+' : ''}${m.effEt}</div>
-          <div class="hud-sub">${s.width}/${s.aspect}R${s.inch} (${s.j.toFixed(1)}J)</div>
+          <div class="hud-val">外径 ${m.tireDia.toFixed(0)}mm / ET ${m.effEt >= 0 ? '+' : ''}${m.effEt}</div>
+          <div class="hud-sub">${s.width}/${s.aspect}R${s.inch} (${s.j}J)</div>
         </div>
       `;
     }
@@ -356,12 +364,11 @@ function updateSceneAndHud() {
     `;
   }).join('');
 
-  // Metrics Table
   document.getElementById('metricsTitle').textContent =
     `基準 (${baseSpec.label || `Slot ${String.fromCharCode(65 + state.baseSlot)}`}) との比較 (mm)`;
 
   const rows = [
-    ['サイズ', ...state.slots.map(s => `${s.inch}×${s.j.toFixed(1)}J`)],
+    ['サイズ', ...state.slots.map(s => `${s.inch}×${s.j}J`)],
     ['実効ET', ...metrics.map(m => `${m.effEt >= 0 ? '+' : ''}${m.effEt}`)],
     ['外径差', ...metrics.map((m, i) => i === state.baseSlot ? `${m.tireDia.toFixed(0)}` : fmtDiff(m.tireDia - baseM.tireDia))],
     ['外リム差', ...metrics.map((m, i) => i === state.baseSlot ? `${m.outerRimX.toFixed(1)}` : fmtDiff(m.outerRimX - baseM.outerRimX))],
@@ -379,7 +386,6 @@ function updateSceneAndHud() {
   `).join('');
 }
 
-// --- UI Sync ---
 function syncUI() {
   const s = state.slots[state.activeSlot];
 
@@ -394,23 +400,16 @@ function syncUI() {
   document.getElementById('slotLabel').value = s.label;
 
   document.getElementById('inp_inch').value = s.inch;
-  document.getElementById('val_inch').textContent = `${s.inch}"`;
   document.getElementById('inp_j').value = s.j;
-  document.getElementById('val_j').textContent = `${s.j.toFixed(1)}J`;
   document.getElementById('inp_et').value = s.et;
-  document.getElementById('val_et').textContent = `${s.et >= 0 ? '+' : ''}${s.et} mm`;
   document.getElementById('inp_spacer').value = s.spacer;
-  document.getElementById('val_spacer').textContent = `${s.spacer} mm`;
   document.getElementById('inp_width').value = s.width;
-  document.getElementById('val_width').textContent = `${s.width} mm`;
   document.getElementById('inp_aspect').value = s.aspect;
-  document.getElementById('val_aspect').textContent = `${s.aspect} %`;
   document.getElementById('inp_camber').value = s.camber;
-  document.getElementById('val_camber').textContent = `${s.camber.toFixed(1)}°`;
 
   const sumEl = document.getElementById('slotSummary');
   sumEl.style.color = SLOT_HEX[state.activeSlot];
-  sumEl.textContent = `${s.inch}×${s.j.toFixed(1)}J ${s.et - s.spacer >= 0 ? '+' : ''}${s.et - s.spacer} / ${s.width}/${s.aspect}R${s.inch}`;
+  sumEl.textContent = `${s.inch}×${s.j}J ${s.et - s.spacer >= 0 ? '+' : ''}${s.et - s.spacer}\n${s.width}/${s.aspect}R${s.inch}`;
 
   updateSceneAndHud();
 }
@@ -438,29 +437,42 @@ document.getElementById('slotLabel').addEventListener('input', (e) => {
   syncUI();
 });
 
-const bindSlider = (id, key) => {
+const bindInput = (id, key) => {
   document.getElementById(id).addEventListener('input', (e) => {
-    state.slots[state.activeSlot][key] = Number(e.target.value);
+    const val = parseFloat(e.target.value);
+    if (isNaN(val)) return;
+    state.slots[state.activeSlot][key] = val;
     syncUI();
   });
 };
-bindSlider('inp_inch', 'inch');
-bindSlider('inp_j', 'j');
-bindSlider('inp_et', 'et');
-bindSlider('inp_spacer', 'spacer');
-bindSlider('inp_width', 'width');
-bindSlider('inp_aspect', 'aspect');
-bindSlider('inp_camber', 'camber');
+bindInput('inp_inch', 'inch');
+bindInput('inp_j', 'j');
+bindInput('inp_et', 'et');
+bindInput('inp_spacer', 'spacer');
+bindInput('inp_width', 'width');
+bindInput('inp_aspect', 'aspect');
+bindInput('inp_camber', 'camber');
 
-document.getElementById('tireParseBtn').addEventListener('click', () => {
-  const str = document.getElementById('tireStringInput').value;
-  const m = str.trim().match(/(\d{3})\s*\/\s*(\d{2})\s*[Rr]\s*(\d{2})/);
-  if (!m) return;
+function parseQuickText() {
+  const str = document.getElementById('tireStringInput').value.trim();
+  if (!str) return;
   const s = state.slots[state.activeSlot];
-  s.width = Number(m[1]);
-  s.aspect = Number(m[2]);
-  s.inch = Number(m[3]);
+  const tireMatch = str.match(/(\d{3})\s*\/\s*(\d{2})\s*[Rr]\s*(\d{2})/);
+  if (tireMatch) {
+    s.width = Number(tireMatch[1]);
+    s.aspect = Number(tireMatch[2]);
+    s.inch = Number(tireMatch[3]);
+  }
+  const jMatch = str.match(/(\d+(?:\.\d+)?)\s*[Jj]/);
+  if (jMatch) s.j = Number(jMatch[1]);
+  const etMatch = str.match(/([+-]\d+)(?:\s|$)/);
+  if (etMatch) s.et = Number(etMatch[1]);
   syncUI();
+}
+
+document.getElementById('tireParseBtn').addEventListener('click', parseQuickText);
+document.getElementById('tireStringInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') parseQuickText();
 });
 
 document.querySelectorAll('.seg-btn').forEach(btn => {
@@ -518,18 +530,29 @@ document.getElementById('shareUrlBtn').addEventListener('click', async () => {
   }
 });
 
-window.addEventListener('resize', () => {
-  camera.aspect = container.clientWidth / container.clientHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(container.clientWidth, container.clientHeight);
-});
+function resizeRenderer() {
+  if (!renderer) return;
+  const w = container.clientWidth;
+  const h = container.clientHeight;
+  if (w > 0 && h > 0) {
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h);
+  }
+}
+
+if (typeof ResizeObserver !== 'undefined') {
+  new ResizeObserver(resizeRenderer).observe(container);
+}
+window.addEventListener('resize', resizeRenderer);
 
 function animate() {
   requestAnimationFrame(animate);
   controls.update();
-  renderer.render(scene, camera);
+  if (renderer) renderer.render(scene, camera);
 }
 
 loadFromUrl();
 syncUI();
+resizeRenderer();
 animate();
