@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Wheel & Tire Fitment 3D — 干渉・ツライチ比較</title>
+  <title>Wheel & Tire Fitment 3D — 3スロット比較</title>
   <link rel="stylesheet" href="style.css" />
   <script type="importmap">
     {
@@ -19,11 +19,11 @@
     <div class="brand">
       <span class="brand-badge">3D</span>
       <h1>Fitment Studio</h1>
-      <span class="subtitle">最小/最大マッチング比較</span>
+      <span class="subtitle">3スロット比較</span>
     </div>
     <div class="topbar-actions">
       <select id="presetSelect" title="車種プリセット">
-        <option value="">車種プリセットを選択...</option>
+        <option value="">プリセット読込...</option>
         <option value="civic_fc1">シビック (FC1/FK7系)</option>
         <option value="kei_standard">軽自動車 (デイズ/N-BOX等)</option>
         <option value="prius_50">プリウス / カローラ系</option>
@@ -58,163 +58,98 @@
           <input type="checkbox" id="crossSectionToggle" />
           <span>断面カット</span>
         </label>
-        <label class="chip-toggle min-chip">
-          <input type="checkbox" id="showMinToggle" checked />
-          <span>最小基準(赤/内)</span>
-        </label>
-        <label class="chip-toggle max-chip">
-          <input type="checkbox" id="showMaxToggle" checked />
-          <span>最大基準(青/外)</span>
-        </label>
       </div>
 
-      <!-- 判定オーバーレイ -->
+      <!-- 3スロット凡例 & クイック表示トグル -->
+      <div class="legend-bar" id="legendBar"></div>
+
+      <!-- 比較サマリーオーバーレイ -->
       <div class="hud-panel">
-        <div class="hud-row">
-          <div class="hud-card" id="brakeCard">
-            <div class="hud-label">ブレーキ・内側干渉 (vs 最小)</div>
-            <div class="hud-val" id="brakeStatus">--</div>
-            <div class="hud-sub" id="brakeDetail">--</div>
-          </div>
-          <div class="hud-card" id="fenderCard">
-            <div class="hud-label">ハウス・ツライチ (vs 最大)</div>
-            <div class="hud-val" id="fenderStatus">--</div>
-            <div class="hud-sub" id="fenderDetail">--</div>
-          </div>
-          <div class="hud-card" id="stretchCard">
-            <div class="hud-label">外径差 / 引っ張り</div>
-            <div class="hud-val" id="stretchStatus">--</div>
-            <div class="hud-sub" id="stretchDetail">--</div>
-          </div>
-        </div>
+        <div class="hud-row" id="hudRow"></div>
       </div>
     </section>
 
     <!-- コントロールパネル -->
     <aside class="controls-panel">
-      <!-- タブ切替 -->
-      <div class="tabs">
-        <button class="tab-btn active" data-tab="target">検討中サイズ</button>
-        <button class="tab-btn" data-tab="min">最小基準(内)</button>
-        <button class="tab-btn" data-tab="max">最大基準(外)</button>
+      <!-- 3スロットタブ -->
+      <div class="slot-tabs" id="slotTabs">
+        <button class="slot-tab active" data-slot="0">
+          <span class="dot dot-0"></span>
+          <span>Slot A</span>
+        </button>
+        <button class="slot-tab" data-slot="1">
+          <span class="dot dot-1"></span>
+          <span>Slot B</span>
+        </button>
+        <button class="slot-tab" data-slot="2">
+          <span class="dot dot-2"></span>
+          <span>Slot C</span>
+        </button>
       </div>
 
-      <!-- 検討中サイズ -->
-      <div class="tab-content active" id="tab-target">
-        <div class="quick-parse">
-          <input type="text" id="targetTireInput" placeholder="例: 215/45R17" value="225/40R18" />
-          <button id="targetParseBtn" class="btn">反映</button>
-        </div>
-        <div class="spec-summary" id="targetSummary">18×8.0J +38 / 225/40R18</div>
+      <!-- アクティブスロット設定ヘッダー -->
+      <div class="slot-meta-bar">
+        <label class="meta-check">
+          <input type="checkbox" id="slotEnabled" checked />
+          <span>3Dに表示</span>
+        </label>
+        <label class="meta-check">
+          <input type="checkbox" id="slotIsBase" />
+          <span>比較の基準にする</span>
+        </label>
+        <input type="text" id="slotLabel" class="slot-label-input" placeholder="ラベル (例: 純正16)" maxlength="16" />
+      </div>
 
+      <!-- サイズ文字列パーサー -->
+      <div class="quick-parse">
+        <input type="text" id="tireStringInput" placeholder="例: 215/45R17" />
+        <button id="tireParseBtn" class="btn">反映</button>
+      </div>
+      <div class="spec-summary" id="slotSummary">--</div>
+
+      <!-- スライダー群 -->
+      <div class="sliders-area">
         <div class="control-group">
-          <div class="control-head"><span>インチ (リム径)</span><strong id="t_inch_val">18"</strong></div>
-          <input type="range" id="t_inch" min="13" max="22" step="1" value="18" />
+          <div class="control-head"><span>インチ (リム径)</span><strong id="val_inch">18"</strong></div>
+          <input type="range" id="inp_inch" min="13" max="22" step="1" />
         </div>
         <div class="control-group">
-          <div class="control-head"><span>J数 (リム幅)</span><strong id="t_j_val">8.0J</strong></div>
-          <input type="range" id="t_j" min="4.5" max="12.0" step="0.5" value="8.0" />
+          <div class="control-head"><span>J数 (リム幅)</span><strong id="val_j">8.0J</strong></div>
+          <input type="range" id="inp_j" min="4.5" max="12.0" step="0.5" />
         </div>
         <div class="control-group">
-          <div class="control-head"><span>インセット (オフセット)</span><strong id="t_et_val">+38 mm</strong></div>
-          <input type="range" id="t_et" min="-20" max="70" step="1" value="38" />
+          <div class="control-head"><span>インセット (オフセット)</span><strong id="val_et">+38 mm</strong></div>
+          <input type="range" id="inp_et" min="-20" max="70" step="1" />
         </div>
         <div class="control-group">
-          <div class="control-head"><span>スペーサー厚</span><strong id="t_spacer_val">0 mm</strong></div>
-          <input type="range" id="t_spacer" min="0" max="30" step="1" value="0" />
+          <div class="control-head"><span>スペーサー厚</span><strong id="val_spacer">0 mm</strong></div>
+          <input type="range" id="inp_spacer" min="0" max="30" step="1" />
         </div>
         <hr class="divider" />
         <div class="control-group">
-          <div class="control-head"><span>タイヤ幅</span><strong id="t_width_val">225 mm</strong></div>
-          <input type="range" id="t_width" min="135" max="335" step="5" value="225" />
+          <div class="control-head"><span>タイヤ幅</span><strong id="val_width">225 mm</strong></div>
+          <input type="range" id="inp_width" min="135" max="335" step="5" />
         </div>
         <div class="control-group">
-          <div class="control-head"><span>扁平率</span><strong id="t_aspect_val">40 %</strong></div>
-          <input type="range" id="t_aspect" min="25" max="85" step="5" value="40" />
+          <div class="control-head"><span>扁平率</span><strong id="val_aspect">40 %</strong></div>
+          <input type="range" id="inp_aspect" min="25" max="85" step="5" />
         </div>
-        <hr class="divider" />
         <div class="control-group">
-          <div class="control-head"><span>簡易キャンバー (ネガティブ)</span><strong id="t_camber_val">0.0°</strong></div>
-          <input type="range" id="t_camber" min="0" max="6" step="0.5" value="0" />
+          <div class="control-head"><span>簡易キャンバー (ネガ)</span><strong id="val_camber">0.0°</strong></div>
+          <input type="range" id="inp_camber" min="0" max="6" step="0.5" />
         </div>
       </div>
 
-      <!-- 最小マッチング基準 -->
-      <div class="tab-content" id="tab-min">
-        <p class="hint">純正の最小サイズ等を設定。これより小径・内側に入るとブレーキやサスアームとの干渉リスクを警告します。</p>
-        <div class="quick-parse">
-          <input type="text" id="minTireInput" placeholder="例: 215/55R16" value="215/55R16" />
-          <button id="minParseBtn" class="btn">反映</button>
-        </div>
-        <div class="spec-summary" id="minSummary">16×7.0J +45 / 215/55R16</div>
-
-        <div class="control-group">
-          <div class="control-head"><span>最小インチ</span><strong id="min_inch_val">16"</strong></div>
-          <input type="range" id="min_inch" min="13" max="22" step="1" value="16" />
-        </div>
-        <div class="control-group">
-          <div class="control-head"><span>J数</span><strong id="min_j_val">7.0J</strong></div>
-          <input type="range" id="min_j" min="4.5" max="12.0" step="0.5" value="7.0" />
-        </div>
-        <div class="control-group">
-          <div class="control-head"><span>インセット</span><strong id="min_et_val">+45 mm</strong></div>
-          <input type="range" id="min_et" min="-20" max="70" step="1" value="45" />
-        </div>
-        <div class="control-group">
-          <div class="control-head"><span>タイヤ幅</span><strong id="min_width_val">215 mm</strong></div>
-          <input type="range" id="min_width" min="135" max="335" step="5" value="215" />
-        </div>
-        <div class="control-group">
-          <div class="control-head"><span>扁平率</span><strong id="min_aspect_val">55 %</strong></div>
-          <input type="range" id="min_aspect" min="25" max="85" step="5" value="55" />
-        </div>
-      </div>
-
-      <!-- 最大マッチング基準 -->
-      <div class="tab-content" id="tab-max">
-        <p class="hint">純正の最大サイズや既知の限界サイズを設定。これより外径が大きい・外側に出るとフェンダー・タイヤハウス干渉を警告します。</p>
-        <div class="quick-parse">
-          <input type="text" id="maxTireInput" placeholder="例: 235/40R18" value="235/40R18" />
-          <button id="maxParseBtn" class="btn">反映</button>
-        </div>
-        <div class="spec-summary" id="maxSummary">18×8.0J +50 / 235/40R18</div>
-
-        <div class="control-group">
-          <div class="control-head"><span>最大インチ</span><strong id="max_inch_val">18"</strong></div>
-          <input type="range" id="max_inch" min="13" max="22" step="1" value="18" />
-        </div>
-        <div class="control-group">
-          <div class="control-head"><span>J数</span><strong id="max_j_val">8.0J</strong></div>
-          <input type="range" id="max_j" min="4.5" max="12.0" step="0.5" value="8.0" />
-        </div>
-        <div class="control-group">
-          <div class="control-head"><span>インセット</span><strong id="max_et_val">+50 mm</strong></div>
-          <input type="range" id="max_et" min="-20" max="70" step="1" value="50" />
-        </div>
-        <div class="control-group">
-          <div class="control-head"><span>タイヤ幅</span><strong id="max_width_val">235 mm</strong></div>
-          <input type="range" id="max_width" min="135" max="335" step="5" value="235" />
-        </div>
-        <div class="control-group">
-          <div class="control-head"><span>扁平率</span><strong id="max_aspect_val">40 %</strong></div>
-          <input type="range" id="max_aspect" min="25" max="85" step="5" value="40" />
-        </div>
-        <div class="control-group">
-          <div class="control-head"><span>フェンダー追加余裕 (+mm)</span><strong id="max_margin_val">10 mm</strong></div>
-          <input type="range" id="max_margin" min="0" max="35" step="1" value="10" />
-        </div>
-      </div>
-
-      <!-- 実測値テーブル -->
+      <!-- 3スロット実測比較テーブル -->
       <div class="metrics-box">
-        <div class="metrics-title">実測数値比較 (mm)</div>
+        <div class="metrics-title" id="metricsTitle">基準比 比較表 (mm)</div>
         <table class="metrics-table">
           <thead>
             <tr>
               <th>項目</th>
-              <th>検討中</th>
-              <th>最小差</th>
-              <th>最大差</th>
+              <th class="col-0">A</th>
+              <th class="col-1">B</th>
+              <th class="col-2">C</th>
             </tr>
           </thead>
           <tbody id="metricsBody"></tbody>
