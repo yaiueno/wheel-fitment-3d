@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Fitment Studio — 2D断面 × 3D統合比較</title>
-  <link rel="stylesheet" href="style.css?v=5" />
+  <link rel="stylesheet" href="style.css?v=6" />
   <script type="importmap">
     {
       "imports": {
@@ -115,31 +115,31 @@
       <div class="num-grid">
         <label class="num-field">
           <span>インチ</span>
-          <input type="number" id="inp_inch" min="10" max="24" step="1" />
+          <input type="text" inputmode="decimal" id="inp_inch" />
         </label>
         <label class="num-field">
           <span>J数 (リム幅)</span>
-          <input type="number" id="inp_j" min="3.5" max="14" step="0.5" />
+          <input type="text" inputmode="decimal" id="inp_j" />
         </label>
         <label class="num-field">
           <span>インセット (mm)</span>
-          <input type="number" id="inp_et" min="-50" max="80" step="1" />
+          <input type="text" inputmode="decimal" id="inp_et" />
         </label>
         <label class="num-field">
           <span>スペーサー (mm)</span>
-          <input type="number" id="inp_spacer" min="0" max="50" step="1" />
+          <input type="text" inputmode="decimal" id="inp_spacer" />
         </label>
         <label class="num-field">
           <span>タイヤ幅 (mm)</span>
-          <input type="number" id="inp_width" min="115" max="355" step="5" />
+          <input type="text" inputmode="decimal" id="inp_width" />
         </label>
         <label class="num-field">
           <span>扁平率 (%)</span>
-          <input type="number" id="inp_aspect" min="20" max="90" step="5" />
+          <input type="text" inputmode="decimal" id="inp_aspect" />
         </label>
         <label class="num-field">
           <span>キャンバー (°)</span>
-          <input type="number" id="inp_camber" min="0" max="10" step="0.5" />
+          <input type="text" inputmode="decimal" id="inp_camber" />
         </label>
         <div class="spec-badge" id="slotSummary">--</div>
       </div>
@@ -162,6 +162,6 @@
   </main>
 
   <div id="toast" class="toast">URLをコピーしました</div>
-  <script type="module" src="app.js?v=5"></script>
+  <script type="module" src="app.js?v=6"></script>
 </body>
 </html>

@@ -619,13 +619,17 @@ function syncUI() {
   document.getElementById('slotIsBase').checked = state.baseSlot === state.activeSlot;
   document.getElementById('slotLabel').value = s.label;
 
-  document.getElementById('inp_inch').value = s.inch;
-  document.getElementById('inp_j').value = s.j;
-  document.getElementById('inp_et').value = s.et;
-  document.getElementById('inp_spacer').value = s.spacer;
-  document.getElementById('inp_width').value = s.width;
-  document.getElementById('inp_aspect').value = s.aspect;
-  document.getElementById('inp_camber').value = s.camber;
+  const setIfNotFocused = (id, val) => {
+    const el = document.getElementById(id);
+    if (document.activeElement !== el) el.value = val;
+  };
+  setIfNotFocused('inp_inch', s.inch);
+  setIfNotFocused('inp_j', s.j);
+  setIfNotFocused('inp_et', s.et);
+  setIfNotFocused('inp_spacer', s.spacer);
+  setIfNotFocused('inp_width', s.width);
+  setIfNotFocused('inp_aspect', s.aspect);
+  setIfNotFocused('inp_camber', s.camber);
 
   const sumEl = document.getElementById('slotSummary');
   sumEl.style.color = SLOT_HEX[state.activeSlot];
@@ -658,10 +662,16 @@ document.getElementById('slotLabel').addEventListener('input', (e) => {
 });
 
 const bindInput = (id, key) => {
-  document.getElementById(id).addEventListener('input', (e) => {
-    const val = parseFloat(e.target.value);
+  const el = document.getElementById(id);
+  el.addEventListener('input', (e) => {
+    const raw = e.target.value.trim();
+    if (raw === '' || raw === '-' || raw.endsWith('.')) return;
+    const val = parseFloat(raw);
     if (isNaN(val)) return;
     state.slots[state.activeSlot][key] = val;
+    syncUI();
+  });
+  el.addEventListener('blur', () => {
     syncUI();
   });
 };
