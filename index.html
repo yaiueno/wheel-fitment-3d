@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Fitment Studio — 2D断面 × 3D統合比較</title>
-  <link rel="stylesheet" href="style.css?v=6" />
+  <link rel="stylesheet" href="style.css?v=7" />
   <script type="importmap">
     {
       "imports": {
@@ -38,7 +38,8 @@
       <!-- ツールバー上段: 2D / 3D 統合切替 & 表示オプション -->
       <div class="stage-toolbar">
         <div class="seg-group" id="renderModeGroup">
-          <button class="seg-btn active" data-render="2d">2D 精密断面</button>
+          <button class="seg-btn active" data-render="2d-front">2D 正面</button>
+          <button class="seg-btn" data-render="2d-side">2D 真横</button>
           <button class="seg-btn" data-render="3d">3D 立体</button>
         </div>
 
@@ -162,6 +163,6 @@
   </main>
 
   <div id="toast" class="toast">URLをコピーしました</div>
-  <script type="module" src="app.js?v=6"></script>
+  <script type="module" src="app.js?v=7"></script>
 </body>
 </html>

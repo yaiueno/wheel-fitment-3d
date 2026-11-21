@@ -42,7 +42,7 @@ const state = {
   ],
   activeSlot: 0,
   baseSlot: 0,
-  renderMode: '2d', // '2d' | '3d'
+  renderMode: '2d-front', // '2d-front' | '2d-side' | '3d'
   partMode: 'both', // 'both' | 'wheel' | 'tire'
   arrangeSideBySide: false,
   crossSection: false
@@ -125,7 +125,7 @@ const canvas2d = document.getElementById('canvas2d');
 const ctx2d = canvas2d.getContext('2d');
 
 function draw2D() {
-  if (state.renderMode !== '2d') return;
+  if (state.renderMode === '3d') return;
   const wrap = document.getElementById('canvas2dWrap');
   const w = wrap.clientWidth;
   const h = wrap.clientHeight;
@@ -142,168 +142,184 @@ function draw2D() {
 
   const metrics = state.slots.map(calcMetrics);
   const maxRad = Math.max(...metrics.map(m => m.tireRad), 340);
-
-  // Split viewport: Left 52% = Front Cross-Section (X vs Y), Right 48% = Side Concentric Circles
-  const leftW = w * 0.54;
-  const rightW = w - leftW;
-
-  // Common scale (mm -> px)
-  const scale = Math.min((h - 80) / (maxRad * 2.15), (rightW - 50) / (maxRad * 2.15), (leftW - 60) / 420);
   const cy = h * 0.52;
-  const cxLeft = leftW * 0.54; // X=0 Hub face slightly right of center so inner (-X) has room
-  const cxRight = leftW + rightW * 0.5;
 
-  // --- Background Grid (Left) ---
   ctx2d.save();
-  ctx2d.strokeStyle = '#e2e8f0';
-  ctx2d.lineWidth = 1;
-  for (let mm = -250; mm <= 200; mm += 50) {
-    const px = cxLeft + mm * scale;
-    if (px < 16 || px > leftW - 12) continue;
+
+  if (state.renderMode === '2d-front') {
+    const scale = Math.min((h - 76) / (maxRad * 2.1), (w - 80) / 420);
+    const cxCenter = w * 0.54; // X=0 Hub face
+
+    // Grid (50mm intervals)
+    ctx2d.strokeStyle = '#e2e8f0';
+    ctx2d.lineWidth = 1;
+    for (let mm = -300; mm <= 250; mm += 50) {
+      const px = cxCenter + mm * scale;
+      if (px < 20 || px > w - 20) continue;
+      ctx2d.beginPath();
+      ctx2d.moveTo(px, 28);
+      ctx2d.lineTo(px, h - 24);
+      ctx2d.stroke();
+    }
+
+    // Hub Face Line (X = 0)
+    ctx2d.strokeStyle = '#334155';
+    ctx2d.lineWidth = 1.6;
+    ctx2d.setLineDash([5, 4]);
     ctx2d.beginPath();
-    ctx2d.moveTo(px, 28);
-    ctx2d.lineTo(px, h - 24);
+    ctx2d.moveTo(cxCenter, 28);
+    ctx2d.lineTo(cxCenter, h - 24);
     ctx2d.stroke();
+    ctx2d.setLineDash([]);
+
+    // Axle Horizontal Line
+    ctx2d.strokeStyle = '#cbd5e1';
+    ctx2d.beginPath();
+    ctx2d.moveTo(20, cy);
+    ctx2d.lineTo(w - 20, cy);
+    ctx2d.stroke();
+
+    // Labels
+    ctx2d.fillStyle = '#475569';
+    ctx2d.font = '600 12px sans-serif';
+    ctx2d.textAlign = 'left';
+    ctx2d.fillText('← 車体側 (ブレーキ / サス)', 16, 22);
+    ctx2d.textAlign = 'right';
+    ctx2d.fillText('フェンダー側 (外側) →', w - 16, 22);
+    ctx2d.textAlign = 'center';
+    ctx2d.fillStyle = '#0f172a';
+    ctx2d.fillText('ハブ面 (0mm)', cxCenter, h - 8);
+
+    // Brake Rotor & Caliper Silhouette (-X)
+    ctx2d.fillStyle = 'rgba(148, 163, 184, 0.28)';
+    ctx2d.fillRect(cxCenter - 32 * scale, cy - 145 * scale, 22 * scale, 290 * scale);
+    ctx2d.fillStyle = 'rgba(220, 38, 38, 0.45)';
+    ctx2d.fillRect(cxCenter - 42 * scale, cy - 150 * scale, 34 * scale, 55 * scale);
+
+    state.slots.forEach((s, idx) => {
+      if (!s.enabled) return;
+      const m = metrics[idx];
+      const color = SLOT_HEX[idx];
+      const fill = SLOT_FILL[idx];
+      const isFocused = idx === state.activeSlot;
+      const lw = isFocused ? 2.8 : 1.8;
+
+      ctx2d.save();
+      ctx2d.translate(cxCenter, cy);
+      ctx2d.rotate((-s.camber * Math.PI) / 180);
+
+      if (showWheel) {
+        const xIn = m.innerRimX * scale;
+        const xOut = m.outerRimX * scale;
+        const rIn = m.barrelInnerRad * scale;
+        const rOut = m.rimRad * scale;
+
+        ctx2d.strokeStyle = color;
+        ctx2d.fillStyle = fill;
+        ctx2d.lineWidth = lw;
+
+        [-1, 1].forEach(sign => {
+          ctx2d.beginPath();
+          ctx2d.rect(xIn, sign > 0 ? rIn : -rOut, xOut - xIn, rOut - rIn);
+          ctx2d.fill();
+          ctx2d.stroke();
+        });
+
+        ctx2d.save();
+        ctx2d.setLineDash([3, 3]);
+        ctx2d.lineWidth = 1.2;
+        ctx2d.beginPath();
+        ctx2d.moveTo(xOut, -m.tireRad * scale - 12);
+        ctx2d.lineTo(xOut, m.tireRad * scale + 12);
+        ctx2d.stroke();
+        ctx2d.restore();
+      }
+
+      if (showTire) {
+        const cx = m.centerX * scale;
+        const rimHalf = (m.rimWidth / 2) * scale;
+        const bulgeHalf = (m.actualSectionWidth / 2) * scale;
+        const treadHalf = ((m.actualSectionWidth * 0.86) / 2) * scale;
+        const rBead = m.rimRad * scale;
+        const rMid = (m.rimRad + m.sidewallH * 0.52) * scale;
+        const rOut = m.tireRad * scale;
+
+        ctx2d.strokeStyle = color;
+        ctx2d.fillStyle = fill;
+        ctx2d.lineWidth = lw;
+
+        [-1, 1].forEach(sign => {
+          ctx2d.beginPath();
+          ctx2d.moveTo(cx - rimHalf, sign * rBead);
+          ctx2d.lineTo(cx - bulgeHalf, sign * rMid);
+          ctx2d.lineTo(cx - treadHalf, sign * rOut);
+          ctx2d.lineTo(cx + treadHalf, sign * rOut);
+          ctx2d.lineTo(cx + bulgeHalf, sign * rMid);
+          ctx2d.lineTo(cx + rimHalf, sign * rBead);
+          ctx2d.closePath();
+          ctx2d.fill();
+          ctx2d.stroke();
+        });
+      }
+      ctx2d.restore();
+    });
+  } else if (state.renderMode === '2d-side') {
+    const scale = Math.min((h - 76) / (maxRad * 2.15), (w - 80) / (maxRad * 2.15));
+    const cxCenter = w * 0.5;
+
+    ctx2d.fillStyle = '#0f172a';
+    ctx2d.font = '600 12px sans-serif';
+    ctx2d.textAlign = 'center';
+    ctx2d.fillText('真横ビュー — 外径・リム径・ブレーキ内径比較', cxCenter, 22);
+
+    // Center crosshair
+    ctx2d.strokeStyle = '#cbd5e1';
+    ctx2d.lineWidth = 1;
+    ctx2d.beginPath();
+    ctx2d.moveTo(cxCenter - maxRad * scale - 20, cy);
+    ctx2d.lineTo(cxCenter + maxRad * scale + 20, cy);
+    ctx2d.moveTo(cxCenter, cy - maxRad * scale - 20);
+    ctx2d.lineTo(cxCenter, cy + maxRad * scale + 20);
+    ctx2d.stroke();
+
+    // Brake Rotor Circle
+    ctx2d.strokeStyle = 'rgba(220, 38, 38, 0.5)';
+    ctx2d.lineWidth = 1.6;
+    ctx2d.setLineDash([4, 4]);
+    ctx2d.beginPath();
+    ctx2d.arc(cxCenter, cy, 145 * scale, 0, Math.PI * 2);
+    ctx2d.stroke();
+    ctx2d.setLineDash([]);
+
+    state.slots.forEach((s, idx) => {
+      if (!s.enabled) return;
+      const m = metrics[idx];
+      const color = SLOT_HEX[idx];
+      const isFocused = idx === state.activeSlot;
+      const lw = isFocused ? 3.0 : 1.8;
+
+      ctx2d.strokeStyle = color;
+      ctx2d.lineWidth = lw;
+      if (showTire) {
+        ctx2d.beginPath();
+        ctx2d.arc(cxCenter, cy, m.tireRad * scale, 0, Math.PI * 2);
+        ctx2d.stroke();
+      }
+      if (showWheel) {
+        ctx2d.beginPath();
+        ctx2d.arc(cxCenter, cy, m.rimRad * scale, 0, Math.PI * 2);
+        ctx2d.stroke();
+
+        ctx2d.save();
+        ctx2d.setLineDash([5, 3]);
+        ctx2d.lineWidth = 1.3;
+        ctx2d.beginPath();
+        ctx2d.arc(cxCenter, cy, m.barrelInnerRad * scale, 0, Math.PI * 2);
+        ctx2d.stroke();
+        ctx2d.restore();
+      }
+    });
   }
-
-  // Hub Face Line (X = 0)
-  ctx2d.strokeStyle = '#334155';
-  ctx2d.lineWidth = 1.5;
-  ctx2d.setLineDash([5, 4]);
-  ctx2d.beginPath();
-  ctx2d.moveTo(cxLeft, 28);
-  ctx2d.lineTo(cxLeft, h - 24);
-  ctx2d.stroke();
-  ctx2d.setLineDash([]);
-
-  // Axle Horizontal Line
-  ctx2d.strokeStyle = '#cbd5e1';
-  ctx2d.beginPath();
-  ctx2d.moveTo(16, cy);
-  ctx2d.lineTo(w - 16, cy);
-  ctx2d.stroke();
-
-  // Direction Labels
-  ctx2d.fillStyle = '#475569';
-  ctx2d.font = '600 11px sans-serif';
-  ctx2d.textAlign = 'left';
-  ctx2d.fillText('← 車体側 (ブレーキ)', 14, 22);
-  ctx2d.textAlign = 'right';
-  ctx2d.fillText('フェンダー側 (外側) →', leftW - 14, 22);
-  ctx2d.textAlign = 'center';
-  ctx2d.fillStyle = '#1e293b';
-  ctx2d.fillText('ハブ面 (0)', cxLeft, h - 8);
-  ctx2d.fillText('真横・外径 / 内径比較', cxRight, 22);
-
-  // Brake Rotor Reference Silhouette on Left (-X)
-  ctx2d.fillStyle = 'rgba(148, 163, 184, 0.28)';
-  ctx2d.fillRect(cxLeft - 32 * scale, cy - 145 * scale, 22 * scale, 290 * scale);
-  ctx2d.fillStyle = 'rgba(220, 38, 38, 0.45)';
-  ctx2d.fillRect(cxLeft - 42 * scale, cy - 150 * scale, 34 * scale, 55 * scale);
-
-  // Brake Rotor Circle on Right
-  ctx2d.strokeStyle = 'rgba(148, 163, 184, 0.7)';
-  ctx2d.lineWidth = 1.5;
-  ctx2d.setLineDash([4, 4]);
-  ctx2d.beginPath();
-  ctx2d.arc(cxRight, cy, 145 * scale, 0, Math.PI * 2);
-  ctx2d.stroke();
-  ctx2d.setLineDash([]);
-
-  // Draw each active slot
-  state.slots.forEach((s, idx) => {
-    if (!s.enabled) return;
-    const m = metrics[idx];
-    const color = SLOT_HEX[idx];
-    const fill = SLOT_FILL[idx];
-    const isFocused = idx === state.activeSlot;
-    const lw = isFocused ? 2.6 : 1.8;
-
-    // --- LEFT: Cross Section (Top & Bottom Tire/Wheel Profile) ---
-    ctx2d.save();
-    ctx2d.translate(cxLeft, cy);
-    ctx2d.rotate((-s.camber * Math.PI) / 180);
-
-    // Wheel Barrel Cross-Section (Top & Bottom)
-    if (showWheel) {
-      const xIn = m.innerRimX * scale;
-      const xOut = m.outerRimX * scale;
-      const rIn = m.barrelInnerRad * scale;
-      const rOut = m.rimRad * scale;
-
-      ctx2d.strokeStyle = color;
-      ctx2d.fillStyle = fill;
-      ctx2d.lineWidth = lw;
-
-      [-1, 1].forEach(sign => {
-        ctx2d.beginPath();
-        ctx2d.rect(xIn, sign > 0 ? rIn : -rOut, xOut - xIn, rOut - rIn);
-        ctx2d.fill();
-        ctx2d.stroke();
-      });
-
-      // Vertical inner/outer rim guide lines
-      ctx2d.save();
-      ctx2d.setLineDash([2, 3]);
-      ctx2d.lineWidth = 1;
-      ctx2d.beginPath();
-      ctx2d.moveTo(xOut, -m.tireRad * scale - 10);
-      ctx2d.lineTo(xOut, m.tireRad * scale + 10);
-      ctx2d.stroke();
-      ctx2d.restore();
-    }
-
-    // Tire Section Profile (Top & Bottom)
-    if (showTire) {
-      const cx = m.centerX * scale;
-      const rimHalf = (m.rimWidth / 2) * scale;
-      const bulgeHalf = (m.actualSectionWidth / 2) * scale;
-      const treadHalf = ((m.actualSectionWidth * 0.86) / 2) * scale;
-      const rBead = m.rimRad * scale;
-      const rMid = (m.rimRad + m.sidewallH * 0.52) * scale;
-      const rOut = m.tireRad * scale;
-
-      ctx2d.strokeStyle = color;
-      ctx2d.fillStyle = fill;
-      ctx2d.lineWidth = lw;
-
-      [-1, 1].forEach(sign => {
-        ctx2d.beginPath();
-        ctx2d.moveTo(cx - rimHalf, sign * rBead);
-        ctx2d.lineTo(cx - bulgeHalf, sign * rMid);
-        ctx2d.lineTo(cx - treadHalf, sign * rOut);
-        ctx2d.lineTo(cx + treadHalf, sign * rOut);
-        ctx2d.lineTo(cx + bulgeHalf, sign * rMid);
-        ctx2d.lineTo(cx + rimHalf, sign * rBead);
-        ctx2d.closePath();
-        ctx2d.fill();
-        ctx2d.stroke();
-      });
-    }
-    ctx2d.restore();
-
-    // --- RIGHT: Concentric Circles (Tire Outer & Rim Inner) ---
-    ctx2d.strokeStyle = color;
-    ctx2d.lineWidth = lw;
-    if (showTire) {
-      ctx2d.beginPath();
-      ctx2d.arc(cxRight, cy, m.tireRad * scale, 0, Math.PI * 2);
-      ctx2d.stroke();
-    }
-    if (showWheel) {
-      ctx2d.beginPath();
-      ctx2d.arc(cxRight, cy, m.rimRad * scale, 0, Math.PI * 2);
-      ctx2d.stroke();
-
-      ctx2d.save();
-      ctx2d.setLineDash([4, 3]);
-      ctx2d.lineWidth = 1.2;
-      ctx2d.beginPath();
-      ctx2d.arc(cxRight, cy, m.barrelInnerRad * scale, 0, Math.PI * 2);
-      ctx2d.stroke();
-      ctx2d.restore();
-    }
-  });
 
   ctx2d.restore();
 }
