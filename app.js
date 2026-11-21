@@ -147,7 +147,9 @@ function draw2D() {
   ctx2d.save();
 
   if (state.renderMode === '2d-front') {
-    const scale = Math.min((h - 76) / (maxRad * 2.1), (w - 80) / 420);
+    // Upper half only (Axle at bottom, Fender/Top upwards) for 2x larger clarity
+    const cyAxis = h - 34;
+    const scale = Math.min((h - 70) / (maxRad * 1.08), (w - 80) / 400);
     const cxCenter = w * 0.54; // X=0 Hub face
 
     // Grid (50mm intervals)
@@ -158,7 +160,7 @@ function draw2D() {
       if (px < 20 || px > w - 20) continue;
       ctx2d.beginPath();
       ctx2d.moveTo(px, 28);
-      ctx2d.lineTo(px, h - 24);
+      ctx2d.lineTo(px, cyAxis);
       ctx2d.stroke();
     }
 
@@ -168,15 +170,16 @@ function draw2D() {
     ctx2d.setLineDash([5, 4]);
     ctx2d.beginPath();
     ctx2d.moveTo(cxCenter, 28);
-    ctx2d.lineTo(cxCenter, h - 24);
+    ctx2d.lineTo(cxCenter, cyAxis);
     ctx2d.stroke();
     ctx2d.setLineDash([]);
 
-    // Axle Horizontal Line
-    ctx2d.strokeStyle = '#cbd5e1';
+    // Axle Horizontal Line at bottom
+    ctx2d.strokeStyle = '#94a3b8';
+    ctx2d.lineWidth = 1.5;
     ctx2d.beginPath();
-    ctx2d.moveTo(20, cy);
-    ctx2d.lineTo(w - 20, cy);
+    ctx2d.moveTo(20, cyAxis);
+    ctx2d.lineTo(w - 20, cyAxis);
     ctx2d.stroke();
 
     // Labels
@@ -188,13 +191,13 @@ function draw2D() {
     ctx2d.fillText('フェンダー側 (外側) →', w - 16, 22);
     ctx2d.textAlign = 'center';
     ctx2d.fillStyle = '#0f172a';
-    ctx2d.fillText('ハブ面 (0mm)', cxCenter, h - 8);
+    ctx2d.fillText('ハブ面 (0mm) / 車軸中心', cxCenter, h - 10);
 
-    // Brake Rotor & Caliper Silhouette (-X)
-    ctx2d.fillStyle = 'rgba(148, 163, 184, 0.28)';
-    ctx2d.fillRect(cxCenter - 32 * scale, cy - 145 * scale, 22 * scale, 290 * scale);
-    ctx2d.fillStyle = 'rgba(220, 38, 38, 0.45)';
-    ctx2d.fillRect(cxCenter - 42 * scale, cy - 150 * scale, 34 * scale, 55 * scale);
+    // Brake Rotor & Caliper Silhouette (-X, upper half)
+    ctx2d.fillStyle = 'rgba(148, 163, 184, 0.30)';
+    ctx2d.fillRect(cxCenter - 32 * scale, cyAxis - 145 * scale, 22 * scale, 145 * scale);
+    ctx2d.fillStyle = 'rgba(220, 38, 38, 0.48)';
+    ctx2d.fillRect(cxCenter - 42 * scale, cyAxis - 150 * scale, 34 * scale, 55 * scale);
 
     state.slots.forEach((s, idx) => {
       if (!s.enabled) return;
@@ -205,7 +208,7 @@ function draw2D() {
       const lw = isFocused ? 2.8 : 1.8;
 
       ctx2d.save();
-      ctx2d.translate(cxCenter, cy);
+      ctx2d.translate(cxCenter, cyAxis);
       ctx2d.rotate((-s.camber * Math.PI) / 180);
 
       if (showWheel) {
@@ -218,19 +221,17 @@ function draw2D() {
         ctx2d.fillStyle = fill;
         ctx2d.lineWidth = lw;
 
-        [-1, 1].forEach(sign => {
-          ctx2d.beginPath();
-          ctx2d.rect(xIn, sign > 0 ? rIn : -rOut, xOut - xIn, rOut - rIn);
-          ctx2d.fill();
-          ctx2d.stroke();
-        });
+        ctx2d.beginPath();
+        ctx2d.rect(xIn, -rOut, xOut - xIn, rOut - rIn);
+        ctx2d.fill();
+        ctx2d.stroke();
 
         ctx2d.save();
         ctx2d.setLineDash([3, 3]);
         ctx2d.lineWidth = 1.2;
         ctx2d.beginPath();
-        ctx2d.moveTo(xOut, -m.tireRad * scale - 12);
-        ctx2d.lineTo(xOut, m.tireRad * scale + 12);
+        ctx2d.moveTo(xOut, -m.tireRad * scale - 10);
+        ctx2d.lineTo(xOut, 0);
         ctx2d.stroke();
         ctx2d.restore();
       }
@@ -248,18 +249,16 @@ function draw2D() {
         ctx2d.fillStyle = fill;
         ctx2d.lineWidth = lw;
 
-        [-1, 1].forEach(sign => {
-          ctx2d.beginPath();
-          ctx2d.moveTo(cx - rimHalf, sign * rBead);
-          ctx2d.lineTo(cx - bulgeHalf, sign * rMid);
-          ctx2d.lineTo(cx - treadHalf, sign * rOut);
-          ctx2d.lineTo(cx + treadHalf, sign * rOut);
-          ctx2d.lineTo(cx + bulgeHalf, sign * rMid);
-          ctx2d.lineTo(cx + rimHalf, sign * rBead);
-          ctx2d.closePath();
-          ctx2d.fill();
-          ctx2d.stroke();
-        });
+        ctx2d.beginPath();
+        ctx2d.moveTo(cx - rimHalf, -rBead);
+        ctx2d.lineTo(cx - bulgeHalf, -rMid);
+        ctx2d.lineTo(cx - treadHalf, -rOut);
+        ctx2d.lineTo(cx + treadHalf, -rOut);
+        ctx2d.lineTo(cx + bulgeHalf, -rMid);
+        ctx2d.lineTo(cx + rimHalf, -rBead);
+        ctx2d.closePath();
+        ctx2d.fill();
+        ctx2d.stroke();
       }
       ctx2d.restore();
     });
