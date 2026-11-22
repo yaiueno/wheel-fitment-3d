@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Fitment Studio — 2D断面 × 3D統合比較</title>
-  <link rel="stylesheet" href="style.css?v=7" />
+  <link rel="stylesheet" href="style.css?v=9" />
   <script type="importmap">
     {
       "imports": {
@@ -145,6 +145,23 @@
         <div class="spec-badge" id="slotSummary">--</div>
       </div>
 
+      <div class="export-box">
+        <div class="export-head">
+          <span>3Dモデル書き出し (選択スロット)</span>
+          <select id="exportScale">
+            <option value="1">1/1 (実寸mm)</option>
+            <option value="10">1/10 (RC)</option>
+            <option value="24" selected>1/24 (プラモ)</option>
+            <option value="64">1/64 (ミニカー)</option>
+          </select>
+        </div>
+        <div class="export-btns">
+          <button id="expObjBtn" class="btn">OBJ</button>
+          <button id="expGlbBtn" class="btn">GLB (GLTF)</button>
+          <button id="expStlBtn" class="btn btn-primary">STL (3D印刷)</button>
+        </div>
+      </div>
+
       <div class="metrics-box">
         <div class="metrics-title" id="metricsTitle">基準比 比較表 (mm)</div>
         <table class="metrics-table">
@@ -163,6 +180,6 @@
   </main>
 
   <div id="toast" class="toast">URLをコピーしました</div>
-  <script type="module" src="app.js?v=8"></script>
+  <script type="module" src="app.js?v=9"></script>
 </body>
 </html>

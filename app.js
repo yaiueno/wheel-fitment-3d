@@ -1,5 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { OBJExporter } from 'three/addons/exporters/OBJExporter.js';
+import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+import { STLExporter } from 'three/addons/exporters/STLExporter.js';
 
 const INCH_MM = 25.4;
 const SLOT_COLORS = [0x1d4ed8, 0xd97706, 0x059669];
@@ -824,6 +827,151 @@ function animate() {
     renderer.render(scene, camera);
   }
 }
+
+// =========================
+// 3D MODEL EXPORTER (OBJ / GLB / STL)
+// =========================
+function buildExportGroup(spec) {
+  const m = calcMetrics(spec);
+  const expGroup = new THREE.Group();
+  const showWheel = state.partMode === 'both' || state.partMode === 'wheel';
+  const showTire = state.partMode === 'both' || state.partMode === 'tire';
+  const segs = 64;
+
+  if (showWheel) {
+    const rOut = m.rimRad;
+    const rIn = m.barrelInnerRad;
+    const xIn = m.innerRimX;
+    const xOut = m.outerRimX;
+    const lip = 7;
+
+    const pts = [
+      new THREE.Vector2(rIn, xIn),
+      new THREE.Vector2(rOut + lip, xIn),
+      new THREE.Vector2(rOut + lip, xIn + 6),
+      new THREE.Vector2(rOut, xIn + 10),
+      new THREE.Vector2(rOut - 6, xIn + 35),
+      new THREE.Vector2(rOut - 6, xOut - 35),
+      new THREE.Vector2(rOut, xOut - 10),
+      new THREE.Vector2(rOut + lip, xOut - 6),
+      new THREE.Vector2(rOut + lip, xOut),
+      new THREE.Vector2(rIn, xOut),
+      new THREE.Vector2(rIn, xIn)
+    ];
+
+    const geo = new THREE.LatheGeometry(pts, segs);
+    geo.rotateZ(-Math.PI / 2);
+    const mat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.6, roughness: 0.3 });
+    const rimMesh = new THREE.Mesh(geo, mat);
+    rimMesh.name = 'Wheel_Rim';
+    expGroup.add(rimMesh);
+
+    const hubGeo = new THREE.CylinderGeometry(38, 38, 18, 32);
+    hubGeo.rotateZ(Math.PI / 2);
+    const hubMesh = new THREE.Mesh(hubGeo, mat);
+    hubMesh.position.x = Math.min(xOut - 22, Math.max(xIn + 35, 8));
+    hubMesh.name = 'Wheel_Hub';
+    expGroup.add(hubMesh);
+
+    const spokeLen = Math.max(40, rIn - 34);
+    const spokeGeo = new THREE.BoxGeometry(10, spokeLen, 16);
+    for (let i = 0; i < 5; i++) {
+      const ang = (i / 5) * Math.PI * 2;
+      const sp = new THREE.Mesh(spokeGeo, mat);
+      sp.position.set(xOut - 16, Math.sin(ang) * (spokeLen / 2 + 28), Math.cos(ang) * (spokeLen / 2 + 28));
+      sp.rotation.x = -ang + Math.PI / 2;
+      sp.name = `Wheel_Spoke_${i + 1}`;
+      expGroup.add(sp);
+    }
+  }
+
+  if (showTire) {
+    const rBead = m.rimRad - 2;
+    const rOuter = m.tireRad;
+    const rMid = rBead + m.sidewallH * 0.52;
+    const treadHalfW = (m.actualSectionWidth * 0.86) / 2;
+    const bulgeHalfW = m.actualSectionWidth / 2;
+    const rimHalfW = m.rimWidth / 2;
+    const cx = m.centerX;
+
+    const pts = [
+      new THREE.Vector2(rBead, cx - rimHalfW + 4),
+      new THREE.Vector2(rBead + m.sidewallH * 0.15, cx - rimHalfW),
+      new THREE.Vector2(rMid, cx - bulgeHalfW),
+      new THREE.Vector2(rOuter - 6, cx - treadHalfW),
+      new THREE.Vector2(rOuter, cx - treadHalfW + 8),
+      new THREE.Vector2(rOuter, cx + treadHalfW - 8),
+      new THREE.Vector2(rOuter - 6, cx + treadHalfW),
+      new THREE.Vector2(rMid, cx + bulgeHalfW),
+      new THREE.Vector2(rBead + m.sidewallH * 0.15, cx + rimHalfW),
+      new THREE.Vector2(rBead, cx + rimHalfW - 4),
+      new THREE.Vector2(rBead, cx - rimHalfW + 4)
+    ];
+
+    const geo = new THREE.LatheGeometry(pts, segs);
+    geo.rotateZ(-Math.PI / 2);
+    const tireMesh = new THREE.Mesh(
+      geo,
+      new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.85, metalness: 0.05 })
+    );
+    tireMesh.name = 'Tire';
+    expGroup.add(tireMesh);
+  }
+
+  const scaleDiv = Number(document.getElementById('exportScale').value) || 1;
+  expGroup.scale.setScalar(1 / scaleDiv);
+  expGroup.updateMatrixWorld(true);
+  return { expGroup, scaleDiv };
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function exportBaseName(spec, scaleDiv) {
+  const et = spec.et - spec.spacer;
+  const part = state.partMode;
+  return `${part}_${spec.width}-${spec.aspect}R${spec.inch}_${spec.j}J_ET${et >= 0 ? '+' : ''}${et}_1-${scaleDiv}`;
+}
+
+document.getElementById('expObjBtn').addEventListener('click', () => {
+  const spec = state.slots[state.activeSlot];
+  const { expGroup, scaleDiv } = buildExportGroup(spec);
+  const exporter = new OBJExporter();
+  const text = exporter.parse(expGroup);
+  downloadBlob(new Blob([text], { type: 'text/plain' }), `${exportBaseName(spec, scaleDiv)}.obj`);
+});
+
+document.getElementById('expStlBtn').addEventListener('click', () => {
+  const spec = state.slots[state.activeSlot];
+  const { expGroup, scaleDiv } = buildExportGroup(spec);
+  const exporter = new STLExporter();
+  const buf = exporter.parse(expGroup, { binary: true });
+  downloadBlob(new Blob([buf], { type: 'application/octet-stream' }), `${exportBaseName(spec, scaleDiv)}.stl`);
+});
+
+document.getElementById('expGlbBtn').addEventListener('click', () => {
+  const spec = state.slots[state.activeSlot];
+  const { expGroup, scaleDiv } = buildExportGroup(spec);
+  const exporter = new GLTFExporter();
+  exporter.parse(
+    expGroup,
+    (res) => {
+      const blob = res instanceof ArrayBuffer
+        ? new Blob([res], { type: 'model/gltf-binary' })
+        : new Blob([JSON.stringify(res)], { type: 'application/json' });
+      const ext = res instanceof ArrayBuffer ? 'glb' : 'gltf';
+      downloadBlob(blob, `${exportBaseName(spec, scaleDiv)}.${ext}`);
+    },
+    (err) => showError(`GLB書き出し失敗: ${err.message}`),
+    { binary: true }
+  );
+});
 
 loadFromUrl();
 syncUI();
