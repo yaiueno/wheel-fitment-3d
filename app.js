@@ -804,20 +804,116 @@ document.getElementById('inp_design').addEventListener('change', (e) => {
   syncUI();
 });
 
+function parseSpecText(rawStr, targetObj) {
+  let s = String(rawStr || '')
+    .normalize('NFKC')
+    .toUpperCase()
+    .replace(/[／]/g, '/')
+    .replace(/[－―‐−]/g, '-')
+    .replace(/(?<![\u30A0-\u30FF])ー/g, '-')
+    .replace(/[×✕＊*]/g, 'X')
+    .replace(/±/g, '+')
+    .replace(/[,、]/g, ' ');
+
+  // Remove PCD / bolt holes / PR noise
+  s = s.replace(/PCD\s*[:=]?\s*\d{2,3}(?:\.\d+)?/g, ' ');
+  s = s.replace(/\b(?:100|114\.3|112|120|139\.7)\s*[-/]\s*[456]\s*[H穴]\b/g, ' ');
+  s = s.replace(/\b[456]\s*(?:H|HOLE|穴)\b/g, ' ');
+  s = s.replace(/\b\d{1,2}\s*PR\b/g, ' ');
+
+  // 1. Tire size (standard or delimiter variants)
+  const tireRe = /(?:^|[^\d.])(1[1-9][05]|[23]\d[05])\s*(?:\/|-|\s)\s*(\d{2})\s*(?:Z?R|RF|F|\/|-|\s)\s*(\d{2})\s*(?:C|LT)?(?=$|[^\d])/;
+  const tm = s.match(tireRe);
+  if (tm) {
+    targetObj.width = Number(tm[1]);
+    targetObj.aspect = Number(tm[2]);
+    targetObj.inch = Number(tm[3]);
+    s = s.replace(tm[0], ' ');
+  } else {
+    // 80 aspect omitted (e.g. 145R12, 165R13LT)
+    const tm80 = s.match(/(?:^|[^\d.])(1[2-9][05]|2\d[05])\s*\/?\s*R\s*(\d{2})\s*(?:C|LT)?(?=$|[^\d])/);
+    if (tm80) {
+      targetObj.width = Number(tm80[1]);
+      targetObj.aspect = 80;
+      targetObj.inch = Number(tm80[2]);
+      s = s.replace(tm80[0], ' ');
+    }
+  }
+
+  // 2. XL & LI (consume so they aren't confused with offset)
+  s = s.replace(/\b(?:XL|EXTRA\s*LOAD|RFD|REINFORCED)\b|エクストラロード/g, ' ');
+  s = s.replace(/(?:LI|ロードインデックス)\s*[:=]?\s*(69|[789]\d|1[01]\d)(?=$|[^\d])/g, ' ');
+  s = s.replace(/\(?\b(69|[789]\d|1[01]\d)(?:\/\d{2,3})?\s*[HVWYZQRSTULMNPK]\b\)?/g, ' ');
+
+  // 3. Wheel inch x J or J x inch
+  const setA = s.match(/(?:^|[^\d.])(1\d|2[0-4])\s*(?:インチ|INCH|IN|")?\s*X\s*(\d{1,2}(?:\.\d+)?)\s*(?:JJ?|B)?(?=$|[^\d])/);
+  if (setA) {
+    const jVal = Number(setA[2]);
+    if (jVal >= 3.5 && jVal <= 14) {
+      targetObj.inch = Number(setA[1]);
+      targetObj.j = jVal;
+      s = s.replace(setA[0], ' ');
+    }
+  }
+  const setB = s.match(/(?:^|[^\d.])(\d{1,2}(?:\.\d+)?)\s*(?:JJ?|B)(?:\s*X\s*|-)(1\d|2[0-4])(?=$|[^\d])/);
+  if (setB) {
+    const jVal = Number(setB[1]);
+    if (jVal >= 3.5 && jVal <= 14) {
+      targetObj.j = jVal;
+      targetObj.inch = Number(setB[2]);
+      s = s.replace(setB[0], ' ');
+    }
+  }
+
+  // 4. Standalone J / Inch
+  const jMatch = s.match(/(?:^|[^\d.])(\d{1,2}(?:\.\d+)?)\s*(?:JJ?|B)(?=$|[^\d])|(?:リム幅)\s*[:=]?\s*(\d{1,2}(?:\.\d+)?)/);
+  if (jMatch) {
+    const jVal = Number(jMatch[1] || jMatch[2]);
+    if (jVal >= 3.5 && jVal <= 14) {
+      targetObj.j = jVal;
+      s = s.replace(jMatch[0], ' ');
+    }
+  }
+  const inMatch = s.match(/(?:^|[^\d.])(1\d|2[0-4])\s*(?:インチ|INCH|IN|")/);
+  if (inMatch) {
+    targetObj.inch = Number(inMatch[1]);
+    s = s.replace(inMatch[0], ' ');
+  }
+
+  // 5. Spacer
+  const spMatch = s.match(/(?:スペーサー|SPACER)\s*[:=]?\s*(\d{1,2}(?:\.\d+)?)\s*(?:MM)?/);
+  if (spMatch) {
+    targetObj.spacer = Number(spMatch[1]);
+    s = s.replace(spMatch[0], ' ');
+  }
+
+  // 6. Offset / Inset
+  const etLabel = s.match(/(?:INSET|OFFSET|OFF|ET|インセット|オフセット|オフ)\s*[:=]?\s*([+-]?\s*\d{1,2}(?:\.\d+)?)/);
+  if (etLabel) {
+    targetObj.et = Number(etLabel[1].replace(/\s+/g, ''));
+  } else {
+    const etSign = s.match(/(?:^|\s)([+-]\d{1,2}(?:\.\d+)?)(?:\s*MM)?(?=\s|$)/);
+    if (etSign) {
+      targetObj.et = Number(etSign[1]);
+    } else {
+      const nums = s.match(/(?:^|\s)(-?\d{1,2}(?:\.\d+)?)(?=\s|$)/g);
+      if (nums) {
+        for (let i = nums.length - 1; i >= 0; i--) {
+          const val = Number(nums[i].trim());
+          if (val >= -50 && val <= 75) {
+            targetObj.et = val;
+            break;
+          }
+        }
+      }
+    }
+  }
+}
+
 function parseQuickText() {
   const str = document.getElementById('tireStringInput').value.trim();
   if (!str) return;
-  const s = state.slots[state.activeSlot];
-  const tireMatch = str.match(/(\d{3})\s*\/\s*(\d{2})\s*[Rr]\s*(\d{2})/);
-  if (tireMatch) {
-    s.width = Number(tireMatch[1]);
-    s.aspect = Number(tireMatch[2]);
-    s.inch = Number(tireMatch[3]);
-  }
-  const jMatch = str.match(/(\d+(?:\.\d+)?)\s*[Jj]/);
-  if (jMatch) s.j = Number(jMatch[1]);
-  const etMatch = str.match(/([+-]\d+)(?:\s|$)/);
-  if (etMatch) s.et = Number(etMatch[1]);
+  parseSpecText(str, state.slots[state.activeSlot]);
   syncUI();
 }
 
