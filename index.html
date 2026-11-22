@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Fitment Studio — 2D断面 × 3D統合比較</title>
-  <link rel="stylesheet" href="style.css?v=9" />
+  <link rel="stylesheet" href="style.css?v=10" />
   <script type="importmap">
     {
       "imports": {
@@ -143,6 +143,23 @@
           <span>キャンバー (°)</span>
           <input type="text" inputmode="decimal" id="inp_camber" />
         </label>
+        <label class="num-field">
+          <span>デザイン</span>
+          <select id="inp_design">
+            <option value="spoke5">5本スポーク</option>
+            <option value="spoke6">6本スポーク</option>
+            <option value="spoke10">10本ツイン</option>
+            <option value="dish">ディッシュ</option>
+          </select>
+        </label>
+        <label class="num-field">
+          <span>コンケーブ (mm)</span>
+          <input type="text" inputmode="decimal" id="inp_concave" />
+        </label>
+        <label class="num-field">
+          <span>リム深さ (mm)</span>
+          <input type="text" inputmode="decimal" id="inp_lipDepth" />
+        </label>
         <div class="spec-badge" id="slotSummary">--</div>
       </div>
 
@@ -154,6 +171,16 @@
             <option value="10">1/10 (RC)</option>
             <option value="24" selected>1/24 (プラモ)</option>
             <option value="64">1/64 (ミニカー)</option>
+          </select>
+        </div>
+        <div class="export-shaft-row">
+          <span>裏面軸穴:</span>
+          <select id="exportShaft">
+            <option value="none">穴なし (Blender/CG用)</option>
+            <option value="pin_2.0">1/24プラモ ポリキャップ (φ2.0mm穴)</option>
+            <option value="pin_2.5">1/24プラモ 太軸 (φ2.5mm穴)</option>
+            <option value="rc_hex12">1/10ラジコン (φ4.0mm貫通+ボス)</option>
+            <option value="minicar_0.85">1/64ミニカー (φ0.85mm車軸穴)</option>
           </select>
         </div>
         <div class="export-btns">
@@ -181,6 +208,6 @@
   </main>
 
   <div id="toast" class="toast">URLをコピーしました</div>
-  <script type="module" src="app.js?v=9"></script>
+  <script type="module" src="app.js?v=10"></script>
 </body>
 </html>

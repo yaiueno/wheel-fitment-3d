@@ -11,37 +11,37 @@ const SLOT_FILL = ['rgba(29, 78, 216, 0.14)', 'rgba(217, 119, 6, 0.14)', 'rgba(5
 
 const PRESETS = {
   civic_fc1: [
-    { label: '純正16', enabled: true, inch: 16, j: 7.0, et: 45, spacer: 0, width: 215, aspect: 55, camber: 0 },
-    { label: '純正18', enabled: true, inch: 18, j: 8.0, et: 50, spacer: 0, width: 235, aspect: 40, camber: 0 },
-    { label: '社外案', enabled: true, inch: 18, j: 8.5, et: 38, spacer: 0, width: 225, aspect: 40, camber: 1.0 }
+    { label: '純正16', enabled: true, inch: 16, j: 7.0, et: 45, spacer: 0, width: 215, aspect: 55, camber: 0, design: 'spoke5', concave: 6, lipDepth: 14 },
+    { label: '純正18', enabled: true, inch: 18, j: 8.0, et: 50, spacer: 0, width: 235, aspect: 40, camber: 0, design: 'spoke10', concave: 8, lipDepth: 16 },
+    { label: '社外案', enabled: true, inch: 18, j: 8.5, et: 38, spacer: 0, width: 225, aspect: 40, camber: 1.0, design: 'spoke6', concave: 18, lipDepth: 24 }
   ],
   kei_standard: [
-    { label: '純正14', enabled: true, inch: 14, j: 4.5, et: 45, spacer: 0, width: 155, aspect: 65, camber: 0 },
-    { label: '純正15', enabled: true, inch: 15, j: 4.5, et: 45, spacer: 0, width: 165, aspect: 55, camber: 0 },
-    { label: '社外15', enabled: true, inch: 15, j: 5.5, et: 42, spacer: 0, width: 165, aspect: 55, camber: 0 }
+    { label: '純正14', enabled: true, inch: 14, j: 4.5, et: 45, spacer: 0, width: 155, aspect: 65, camber: 0, design: 'spoke5', concave: 4, lipDepth: 10 },
+    { label: '純正15', enabled: true, inch: 15, j: 4.5, et: 45, spacer: 0, width: 165, aspect: 55, camber: 0, design: 'spoke10', concave: 4, lipDepth: 10 },
+    { label: '社外15', enabled: true, inch: 15, j: 5.5, et: 42, spacer: 0, width: 165, aspect: 55, camber: 0, design: 'spoke6', concave: 10, lipDepth: 22 }
   ],
   prius_50: [
-    { label: '純正15', enabled: true, inch: 15, j: 6.5, et: 40, spacer: 0, width: 195, aspect: 65, camber: 0 },
-    { label: '純正17', enabled: true, inch: 17, j: 7.0, et: 50, spacer: 0, width: 215, aspect: 45, camber: 0 },
-    { label: '社外18', enabled: true, inch: 18, j: 7.5, et: 42, spacer: 0, width: 215, aspect: 40, camber: 0.5 }
+    { label: '純正15', enabled: true, inch: 15, j: 6.5, et: 40, spacer: 0, width: 195, aspect: 65, camber: 0, design: 'spoke5', concave: 5, lipDepth: 12 },
+    { label: '純正17', enabled: true, inch: 17, j: 7.0, et: 50, spacer: 0, width: 215, aspect: 45, camber: 0, design: 'spoke10', concave: 8, lipDepth: 14 },
+    { label: '社外18', enabled: true, inch: 18, j: 7.5, et: 42, spacer: 0, width: 215, aspect: 40, camber: 0.5, design: 'spoke6', concave: 14, lipDepth: 20 }
   ],
   '86_brz': [
-    { label: '純正16', enabled: true, inch: 16, j: 6.5, et: 48, spacer: 0, width: 205, aspect: 55, camber: 0 },
-    { label: '純正17', enabled: true, inch: 17, j: 7.5, et: 48, spacer: 0, width: 215, aspect: 45, camber: 0 },
-    { label: '社外18', enabled: true, inch: 18, j: 8.5, et: 40, spacer: 0, width: 235, aspect: 40, camber: 1.5 }
+    { label: '純正16', enabled: true, inch: 16, j: 6.5, et: 48, spacer: 0, width: 205, aspect: 55, camber: 0, design: 'spoke10', concave: 6, lipDepth: 14 },
+    { label: '純正17', enabled: true, inch: 17, j: 7.5, et: 48, spacer: 0, width: 215, aspect: 45, camber: 0, design: 'spoke10', concave: 10, lipDepth: 16 },
+    { label: '社外18', enabled: true, inch: 18, j: 8.5, et: 40, spacer: 0, width: 235, aspect: 40, camber: 1.5, design: 'spoke6', concave: 22, lipDepth: 24 }
   ],
   nd_roadster: [
-    { label: '純正16', enabled: true, inch: 16, j: 6.5, et: 45, spacer: 0, width: 195, aspect: 50, camber: 0 },
-    { label: 'ブレンボ枠', enabled: true, inch: 17, j: 7.0, et: 45, spacer: 0, width: 205, aspect: 45, camber: 0 },
-    { label: '深リム案', enabled: true, inch: 16, j: 7.5, et: 32, spacer: 0, width: 205, aspect: 50, camber: 1.0 }
+    { label: '純正16', enabled: true, inch: 16, j: 6.5, et: 45, spacer: 0, width: 195, aspect: 50, camber: 0, design: 'spoke10', concave: 6, lipDepth: 14 },
+    { label: 'ブレンボ枠', enabled: true, inch: 17, j: 7.0, et: 45, spacer: 0, width: 205, aspect: 45, camber: 0, design: 'spoke6', concave: 10, lipDepth: 16 },
+    { label: '深リム案', enabled: true, inch: 16, j: 7.5, et: 32, spacer: 0, width: 205, aspect: 50, camber: 1.0, design: 'dish', concave: 14, lipDepth: 42 }
   ]
 };
 
 const state = {
   slots: [
-    { label: 'Slot A', enabled: true, inch: 16, j: 7.0, et: 45, spacer: 0, width: 215, aspect: 55, camber: 0 },
-    { label: 'Slot B', enabled: true, inch: 18, j: 8.0, et: 50, spacer: 0, width: 235, aspect: 40, camber: 0 },
-    { label: 'Slot C', enabled: true, inch: 18, j: 8.5, et: 38, spacer: 0, width: 225, aspect: 40, camber: 0 }
+    { label: 'Slot A', enabled: true, inch: 16, j: 7.0, et: 45, spacer: 0, width: 215, aspect: 55, camber: 0, design: 'spoke5', concave: 8, lipDepth: 18 },
+    { label: 'Slot B', enabled: true, inch: 18, j: 8.0, et: 50, spacer: 0, width: 235, aspect: 40, camber: 0, design: 'spoke6', concave: 14, lipDepth: 20 },
+    { label: 'Slot C', enabled: true, inch: 18, j: 8.5, et: 38, spacer: 0, width: 225, aspect: 40, camber: 0, design: 'spoke10', concave: 20, lipDepth: 26 }
   ],
   activeSlot: 0,
   baseSlot: 0,
@@ -49,6 +49,15 @@ const state = {
   partMode: 'both', // 'both' | 'wheel' | 'tire'
   arrangeSideBySide: false,
   crossSection: false
+};
+
+const SHAFT_SPECS = {
+  none: null,
+  pin_2_0: { holeDiaMm: 2.0, bossLenMm: 5.0 },
+  'pin_2.0': { holeDiaMm: 2.0, bossLenMm: 5.0 },
+  'pin_2.5': { holeDiaMm: 2.5, bossLenMm: 5.5 },
+  rc_hex12: { holeDiaMm: 4.0, bossLenMm: 7.5 },
+  'minicar_0.85': { holeDiaMm: 0.85, bossLenMm: 3.5 }
 };
 
 function showError(msg) {
@@ -74,7 +83,10 @@ function loadFromUrl() {
           width: Number(parts[5]),
           aspect: Number(parts[6]),
           camber: Number(parts[7] || 0),
-          label: parts[8] ? decodeURIComponent(parts[8]) : `Slot ${String.fromCharCode(65 + idx)}`
+          label: parts[8] ? decodeURIComponent(parts[8]) : `Slot ${String.fromCharCode(65 + idx)}`,
+          design: parts[9] || 'spoke5',
+          concave: parts[10] !== undefined ? Number(parts[10]) : 10,
+          lipDepth: parts[11] !== undefined ? Number(parts[11]) : 20
         };
       }
     }
@@ -410,6 +422,103 @@ function addCrispRing(group, radius, xPos, color, tubeRadius, crossSection) {
   group.add(mesh);
 }
 
+// Shared wheel center/spoke/concave/dish/shaft-boss builder
+function buildWheelCenterGeometry(group, m, spec, mat, options = {}) {
+  const {
+    cross = false,
+    phiStart = 0,
+    phiLength = Math.PI * 2,
+    segs = 48,
+    shaftSpec = null,
+    scaleDiv = 1
+  } = options;
+
+  const lipDepth = Math.max(5, Math.min(m.rimWidth * 0.72, Number(spec.lipDepth) || 18));
+  const concave = Math.max(0, Math.min(45, Number(spec.concave) || 0));
+  const spokeOuterX = Math.max(m.innerRimX + 16, m.outerRimX - lipDepth);
+  const hubCenterX = Math.max(m.innerRimX + 12, spokeOuterX - concave);
+
+  // Shaft bore calculations (output physical mm -> pre-scale mm)
+  const holeRadPre = shaftSpec ? (shaftSpec.holeDiaMm / 2) * scaleDiv : 0;
+  const bossOutRadPre = shaftSpec ? Math.max(36, holeRadPre + 2.6 * scaleDiv) : 38;
+  const bossBackLenPre = shaftSpec ? shaftSpec.bossLenMm * scaleDiv : 0;
+
+  // Hollow Hub Cylinder (or solid hub if holeRadPre === 0)
+  const hubFrontX = hubCenterX + 8;
+  const hubBackX = hubCenterX - 10 - bossBackLenPre;
+  const hubPts = [
+    new THREE.Vector2(Math.max(0.1, holeRadPre), hubBackX),
+    new THREE.Vector2(bossOutRadPre, hubBackX),
+    new THREE.Vector2(bossOutRadPre, hubFrontX),
+    new THREE.Vector2(Math.max(0.1, holeRadPre), hubFrontX),
+    new THREE.Vector2(Math.max(0.1, holeRadPre), hubBackX)
+  ];
+  const hubGeo = new THREE.LatheGeometry(hubPts, segs, phiStart, phiLength);
+  hubGeo.rotateZ(-Math.PI / 2);
+  const hubMesh = new THREE.Mesh(hubGeo, mat);
+  hubMesh.name = 'Wheel_Hub';
+  group.add(hubMesh);
+
+  const design = spec.design || 'spoke5';
+  const rInnerHub = Math.max(bossOutRadPre - 4, 28);
+  const rOuterBarrel = m.barrelInnerRad + 2;
+
+  if (design === 'dish') {
+    // Full concave dish plate from hub outer radius to barrel inner radius
+    const dishPts = [
+      new THREE.Vector2(rInnerHub, hubCenterX - 6),
+      new THREE.Vector2(rOuterBarrel, spokeOuterX - 8),
+      new THREE.Vector2(rOuterBarrel, spokeOuterX + 4),
+      new THREE.Vector2(rInnerHub, hubCenterX + 6),
+      new THREE.Vector2(rInnerHub, hubCenterX - 6)
+    ];
+    const dishGeo = new THREE.LatheGeometry(dishPts, segs, phiStart, phiLength);
+    dishGeo.rotateZ(-Math.PI / 2);
+    const dishMesh = new THREE.Mesh(dishGeo, mat);
+    dishMesh.name = 'Wheel_Dish';
+    group.add(dishMesh);
+    return;
+  }
+
+  // Spoke configurations
+  let angles = [];
+  let spokeWidthZ = 18;
+  if (design === 'spoke6') {
+    for (let i = 0; i < 6; i++) angles.push((i / 6) * Math.PI * 2);
+    spokeWidthZ = 20;
+  } else if (design === 'spoke10') {
+    // 5 pairs of twin spokes
+    for (let i = 0; i < 5; i++) {
+      const baseAng = (i / 5) * Math.PI * 2;
+      angles.push(baseAng - 0.16, baseAng + 0.16);
+    }
+    spokeWidthZ = 11;
+  } else {
+    for (let i = 0; i < 5; i++) angles.push((i / 5) * Math.PI * 2);
+    spokeWidthZ = 22;
+  }
+
+  const dx = spokeOuterX - hubCenterX;
+  const dy = Math.max(20, rOuterBarrel - rInnerHub);
+  const spokeLen = Math.hypot(dx, dy);
+  const midX = (hubCenterX + spokeOuterX) / 2;
+  const midR = (rInnerHub + rOuterBarrel) / 2;
+  const tiltZ = -Math.atan2(dx, dy);
+
+  const spokeGeo = new THREE.BoxGeometry(11, spokeLen, spokeWidthZ);
+  angles.forEach((ang, idx) => {
+    if (cross && Math.cos(ang) > 0.2) return;
+    const pivot = new THREE.Group();
+    pivot.rotation.x = ang;
+    const sp = new THREE.Mesh(spokeGeo, mat);
+    sp.position.set(midX, midR, 0);
+    sp.rotation.z = tiltZ;
+    sp.name = `Wheel_Spoke_${idx + 1}`;
+    pivot.add(sp);
+    group.add(pivot);
+  });
+}
+
 function buildSlot3D(group, spec, color, isFocused, zOffset) {
   clearGroup(group);
   if (!spec.enabled) return;
@@ -464,23 +573,7 @@ function buildSlot3D(group, spec, color, isFocused, zOffset) {
     group.add(new THREE.Mesh(geo, mat));
 
     if (solidMode) {
-      const hubGeo = new THREE.CylinderGeometry(38, 38, 18, 24);
-      hubGeo.rotateZ(Math.PI / 2);
-      const hubMesh = new THREE.Mesh(hubGeo, mat);
-      hubMesh.position.x = Math.min(xOut - 22, Math.max(xIn + 35, 8));
-      group.add(hubMesh);
-
-      const spokeCount = 5;
-      const spokeLen = Math.max(40, rIn - 34);
-      const spokeGeo = new THREE.BoxGeometry(10, spokeLen, 16);
-      for (let i = 0; i < spokeCount; i++) {
-        const ang = (i / spokeCount) * Math.PI * 2;
-        if (cross && Math.cos(ang) > 0.2) continue;
-        const sp = new THREE.Mesh(spokeGeo, mat);
-        sp.position.set(xOut - 16, Math.sin(ang) * (spokeLen / 2 + 28), Math.cos(ang) * (spokeLen / 2 + 28));
-        sp.rotation.x = -ang + Math.PI / 2;
-        group.add(sp);
-      }
+      buildWheelCenterGeometry(group, m, spec, mat, { cross, phiStart, phiLength, segs });
     }
 
     addCrispRing(group, rOut + lip, xOut, color, ringThick, cross);
@@ -648,6 +741,9 @@ function syncUI() {
   setIfNotFocused('inp_width', s.width);
   setIfNotFocused('inp_aspect', s.aspect);
   setIfNotFocused('inp_camber', s.camber);
+  setIfNotFocused('inp_concave', s.concave ?? 12);
+  setIfNotFocused('inp_lipDepth', s.lipDepth ?? 20);
+  document.getElementById('inp_design').value = s.design || 'spoke5';
 
   const sumEl = document.getElementById('slotSummary');
   sumEl.style.color = SLOT_HEX[state.activeSlot];
@@ -700,6 +796,13 @@ bindInput('inp_spacer', 'spacer');
 bindInput('inp_width', 'width');
 bindInput('inp_aspect', 'aspect');
 bindInput('inp_camber', 'camber');
+bindInput('inp_concave', 'concave');
+bindInput('inp_lipDepth', 'lipDepth');
+
+document.getElementById('inp_design').addEventListener('change', (e) => {
+  state.slots[state.activeSlot].design = e.target.value;
+  syncUI();
+});
 
 function parseQuickText() {
   const str = document.getElementById('tireStringInput').value.trim();
@@ -789,7 +892,7 @@ document.getElementById('presetSelect').addEventListener('change', (e) => {
 document.getElementById('shareUrlBtn').addEventListener('click', async () => {
   const url = new URL(window.location.href);
   state.slots.forEach((s, idx) => {
-    url.searchParams.set(`s${idx}`, `${s.enabled ? 1 : 0},${s.inch},${s.j},${s.et},${s.spacer},${s.width},${s.aspect},${s.camber},${encodeURIComponent(s.label)}`);
+    url.searchParams.set(`s${idx}`, `${s.enabled ? 1 : 0},${s.inch},${s.j},${s.et},${s.spacer},${s.width},${s.aspect},${s.camber},${encodeURIComponent(s.label)},${s.design || 'spoke5'},${s.concave ?? 12},${s.lipDepth ?? 20}`);
   });
   url.searchParams.set('base', String(state.baseSlot));
   try {
@@ -837,6 +940,9 @@ function buildExportGroup(spec) {
   const showWheel = state.partMode === 'both' || state.partMode === 'wheel';
   const showTire = state.partMode === 'both' || state.partMode === 'tire';
   const segs = 64;
+  const scaleDiv = Number(document.getElementById('exportScale').value) || 1;
+  const shaftKey = document.getElementById('exportShaft').value;
+  const shaftSpec = SHAFT_SPECS[shaftKey] || null;
 
   if (showWheel) {
     const rOut = m.rimRad;
@@ -866,23 +972,7 @@ function buildExportGroup(spec) {
     rimMesh.name = 'Wheel_Rim';
     expGroup.add(rimMesh);
 
-    const hubGeo = new THREE.CylinderGeometry(38, 38, 18, 32);
-    hubGeo.rotateZ(Math.PI / 2);
-    const hubMesh = new THREE.Mesh(hubGeo, mat);
-    hubMesh.position.x = Math.min(xOut - 22, Math.max(xIn + 35, 8));
-    hubMesh.name = 'Wheel_Hub';
-    expGroup.add(hubMesh);
-
-    const spokeLen = Math.max(40, rIn - 34);
-    const spokeGeo = new THREE.BoxGeometry(10, spokeLen, 16);
-    for (let i = 0; i < 5; i++) {
-      const ang = (i / 5) * Math.PI * 2;
-      const sp = new THREE.Mesh(spokeGeo, mat);
-      sp.position.set(xOut - 16, Math.sin(ang) * (spokeLen / 2 + 28), Math.cos(ang) * (spokeLen / 2 + 28));
-      sp.rotation.x = -ang + Math.PI / 2;
-      sp.name = `Wheel_Spoke_${i + 1}`;
-      expGroup.add(sp);
-    }
+    buildWheelCenterGeometry(expGroup, m, spec, mat, { segs, shaftSpec, scaleDiv });
   }
 
   if (showTire) {
@@ -918,7 +1008,6 @@ function buildExportGroup(spec) {
     expGroup.add(tireMesh);
   }
 
-  const scaleDiv = Number(document.getElementById('exportScale').value) || 1;
   expGroup.scale.setScalar(1 / scaleDiv);
   expGroup.updateMatrixWorld(true);
   return { expGroup, scaleDiv };
